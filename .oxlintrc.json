@@ -1,0 +1,19 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "plugins": ["typescript", "unicorn", "react", "react-hooks", "nextjs", "oxc"],
+    "categories": {
+        "correctness": "error",
+        "suspicious": "warn",
+        "perf": "warn"
+    },
+    "rules": {
+        "no-shadow": "off",
+        "react/react-in-jsx-scope": "off",
+        "no-underscore-dangle": "off"
+    },
+    "env": {
+        "builtin": true,
+        "browser": true,
+        "node": true
+    }
+}
