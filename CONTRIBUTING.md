@@ -5,12 +5,15 @@
 this is a way to contribute in project project so nothing too serious - just follow this so we don't break each other's work.
 
 ## workflow
+
 **1. pull latest main first**
+
 ```
 git pull origin main
 ```
 
 **2. create a new branch for your changes**
+
 ```
 git switch -c your-branch-name
 ```
@@ -18,6 +21,7 @@ git switch -c your-branch-name
 **3. make your changes**
 
 **4. before committing — run this**
+
 ```
 pnpm check
 ```
@@ -31,6 +35,7 @@ pnpm check:fix
 to auto-fix formatting and lint issues. **don't skip this** — there's a CI pipeline and it will fail if your code has lint or formatting errors.
 
 **5. commit and push**
+
 ```
 git add .
 git commit -m "describe what you changed"
@@ -62,7 +67,6 @@ use [conventional commits](https://www.conventionalcommits.org) format
 ```
 type: short description
 ```
-
 
 ## the rule
 

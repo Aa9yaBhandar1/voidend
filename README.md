@@ -48,7 +48,6 @@ src/
 | `pnpm db:push`   | push schema changes to db       |
 | `pnpm db:studio` | open drizzle studio             |
 
-
 contributing? read [CONTRIBUTING.md](./CONTRIBUTING.md) first.
 
 </samp>
