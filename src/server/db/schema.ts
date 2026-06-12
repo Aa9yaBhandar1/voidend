@@ -49,6 +49,17 @@ export const endpoints_table = createTable(
             .notNull()
             .references(() => projects_table.id, { onDelete: "cascade" }),
         folderId: d.uuid().references(() => folders_table.id, { onDelete: "cascade" }),
+        method: d
+            .text({ enum: ["GET", "POST", "PUT", "PATCH", "DELETE"] })
+            .notNull()
+            .default("GET"),
+        path: d.text().notNull(),
+        statusCode: d.integer().notNull().default(200),
+        responseHeaders: d.jsonb().default({}),
+        delayMs: d.integer().notNull().default(0),
+        failureRate: d.real().notNull().default(0),
+        responseSchema: d.jsonb().notNull().default({}),
+        errorSchema: d.jsonb().default(null),
         createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
         updatedAt: d
             .timestamp({ withTimezone: true })
@@ -59,5 +70,6 @@ export const endpoints_table = createTable(
     (t) => [
         index("endpoint_project_idx").on(t.projectId),
         index("endpoint_folder_idx").on(t.folderId),
+        index("endpoint_path_idx").on(t.projectId, t.method, t.path), // for fast routing lookup
     ],
 );
