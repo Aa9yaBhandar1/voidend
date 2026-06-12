@@ -16,6 +16,7 @@ export const folderRouter = createTRPCRouter({
             const [folder] = await ctx.db.insert(folders_table).values(input).returning();
             return folder;
         }),
+
     update: publicProcedure
         .input(
             z.object({
@@ -33,11 +34,13 @@ export const folderRouter = createTRPCRouter({
                 .returning();
             return updated;
         }),
+
     delete: publicProcedure
         .input(z.object({ id: z.string().uuid() }))
         .mutation(async ({ ctx, input }) => {
             await ctx.db.delete(folders_table).where(eq(folders_table.id, input.id));
         }),
+
     getByProject: publicProcedure
         .input(z.object({ projectId: z.string().uuid() }))
         .query(async ({ ctx, input }) => {

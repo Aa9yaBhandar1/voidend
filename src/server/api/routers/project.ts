@@ -15,11 +15,13 @@ export const projectRouter = createTRPCRouter({
             const [project] = await ctx.db.insert(projects_table).values(input).returning();
             return project;
         }),
+
     getAll: publicProcedure.query(async ({ ctx }) => {
         return ctx.db.query.projects_table.findMany({
             orderBy: (p, { desc }) => [desc(p.createdAt)],
         });
     }),
+
     getById: publicProcedure
         .input(z.object({ id: z.string().uuid() }))
         .query(async ({ ctx, input }) => {
@@ -27,6 +29,7 @@ export const projectRouter = createTRPCRouter({
                 where: (p, { eq }) => eq(p.id, input.id),
             });
         }),
+
     update: publicProcedure
         .input(
             z.object({
@@ -44,6 +47,7 @@ export const projectRouter = createTRPCRouter({
                 .returning();
             return updated;
         }),
+
     delete: publicProcedure
         .input(z.object({ id: z.string().uuid() }))
         .mutation(async ({ ctx, input }) => {
