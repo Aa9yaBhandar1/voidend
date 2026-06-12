@@ -1,14 +1,16 @@
-import { api, HydrateClient } from "~/trpc/server";
+import { HydrateClient } from "~/trpc/server";
+import { ApiClientLayout } from "./_components/api-client/layout";
+import { ModeToggle } from "~/components/mode-toggle";
 
 export default async function Home() {
-    const health = await api.health.check();
-
     return (
         <HydrateClient>
-            <main>
-                <h1>ghostEnd</h1>
-                <p>api: {health.status}</p>
-                <p>db: {health.db}</p>
+            <main className="h-screen w-full bg-background text-foreground overflow-hidden flex flex-col">
+                <header className="flex items-center justify-between p-4 border-b">
+                    <div className="font-bold text-xl">ghostEnd</div>
+                    <ModeToggle />
+                </header>
+                <ApiClientLayout />
             </main>
         </HydrateClient>
     );
