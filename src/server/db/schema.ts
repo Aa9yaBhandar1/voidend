@@ -1,3 +1,63 @@
-import { pgTableCreator } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
+import { index, pgTableCreator } from "drizzle-orm/pg-core";
 
 export const createTable = pgTableCreator((name) => `ghostend_${name}`);
+
+export const projects_table = createTable(
+    "projects",
+    (d) => ({
+        id: d.uuid().primaryKey().defaultRandom(),
+        title: d.text().notNull(),
+        description: d.text().notNull(),
+        createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
+        updatedAt: d
+            .timestamp({ withTimezone: true })
+            .defaultNow()
+            .notNull()
+            .$onUpdate(() => new Date()),
+    }),
+    (t) => [index("project_title_idx").on(t.title)],
+);
+
+export const folders_table = createTable(
+    "folders",
+    (d) => ({
+        id: d.uuid().primaryKey().defaultRandom(),
+        name: d.text().notNull(),
+        projectId: d
+            .uuid()
+            .notNull()
+            .references(() => projects_table.id, { onDelete: "cascade" }),
+        parentId: d.uuid().references((): AnyPgColumn => folders_table.id, { onDelete: "cascade" }),
+        createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
+        updatedAt: d
+            .timestamp({ withTimezone: true })
+            .defaultNow()
+            .notNull()
+            .$onUpdate(() => new Date()),
+    }),
+    (t) => [index("folder_project_idx").on(t.projectId), index("folder_parent_idx").on(t.parentId)],
+);
+
+export const endpoints_table = createTable(
+    "endpoints",
+    (d) => ({
+        id: d.uuid().primaryKey().defaultRandom(),
+        name: d.text().notNull(),
+        projectId: d
+            .uuid()
+            .notNull()
+            .references(() => projects_table.id, { onDelete: "cascade" }),
+        folderId: d.uuid().references(() => folders_table.id, { onDelete: "cascade" }),
+        createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
+        updatedAt: d
+            .timestamp({ withTimezone: true })
+            .defaultNow()
+            .notNull()
+            .$onUpdate(() => new Date()),
+    }),
+    (t) => [
+        index("endpoint_project_idx").on(t.projectId),
+        index("endpoint_folder_idx").on(t.folderId),
+    ],
+);
