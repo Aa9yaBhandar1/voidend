@@ -1,0 +1,82 @@
+import { type NextRequest, NextResponse } from "next/server";
+import { db } from "~/server/db";
+import { endpoints_table, projects_table } from "~/server/db/schema";
+import { and, eq } from "drizzle-orm";
+import { resolveSchema } from "~/lib/schema-resolver";
+
+interface Params {
+    projectId: string;
+    path: string[];
+}
+
+function matchPath(pattern: string, incoming: string): boolean {
+    const regex = new RegExp("^" + pattern.replace(/:[^/]+/g, "[^/]+") + "$");
+    return regex.test(incoming);
+}
+
+async function handler(req: NextRequest, { params }: { params: Params }) {
+    const { projectId, path } = params;
+    const incomingPath = "/" + path.join("/");
+    const method = req.method;
+
+    const project = await db.query.projects_table.findFirst({
+        where: eq(projects_table.id, projectId),
+    });
+
+    if (!project) {
+        return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    const basePath = project.basePath.replace(/\/$/, "");
+    const strippedPath = incomingPath.startsWith(basePath)
+        ? incomingPath.slice(basePath.length) || "/"
+        : incomingPath;
+
+    const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+    type HttpMethod = (typeof METHODS)[number];
+
+    function isValidMethod(m: string): m is HttpMethod {
+        return METHODS.includes(m as HttpMethod);
+    }
+
+    if (!isValidMethod(method)) {
+        return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
+    }
+
+    const candidates = await db.query.endpoints_table.findMany({
+        where: and(eq(endpoints_table.projectId, projectId), eq(endpoints_table.method, method)),
+    });
+
+    const endpoint = candidates.find((e) => matchPath(e.path, strippedPath));
+
+    if (!endpoint) {
+        return NextResponse.json({ error: "No matching endpoint found" }, { status: 404 });
+    }
+
+    if (endpoint.delayMs > 0) {
+        await new Promise((r) => setTimeout(r, endpoint.delayMs));
+    }
+
+    if (endpoint.failureRate > 0 && Math.random() < endpoint.failureRate) {
+        return NextResponse.json(endpoint.errorSchema ?? { error: "Simulated failure" }, {
+            status: 500,
+        });
+    }
+
+    const count = endpoint.responseCount ?? 1;
+    const data =
+        count > 1
+            ? Array.from({ length: count }, () => resolveSchema(endpoint.responseSchema))
+            : resolveSchema(endpoint.responseSchema);
+
+    return NextResponse.json(data, {
+        status: endpoint.statusCode,
+        headers: (endpoint.responseHeaders as Record<string, string>) ?? {},
+    });
+}
+
+export const GET = handler;
+export const POST = handler;
+export const PUT = handler;
+export const PATCH = handler;
+export const DELETE = handler;
