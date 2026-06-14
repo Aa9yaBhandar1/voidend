@@ -21,6 +21,7 @@ export const endpointRouter = createTRPCRouter({
                 failureRate: z.number().min(0).max(1).default(0),
                 responseHeaders: z.record(z.string(), z.string()).optional(),
                 responseSchema: responseSchemaShape.default({}),
+                responseCount: z.number().int().min(1).max(100).default(1),
                 errorSchema: responseSchemaShape.optional(),
             }),
         )
@@ -67,6 +68,7 @@ export const endpointRouter = createTRPCRouter({
                 failureRate: z.number().min(0).max(1).optional(),
                 responseHeaders: z.record(z.string(), z.string()).optional(),
                 responseSchema: responseSchemaShape.optional(),
+                responseCount: z.number().int().min(1).max(100).optional(),
                 errorSchema: responseSchemaShape.optional(),
                 folderId: z.string().uuid().nullable().optional(),
             }),

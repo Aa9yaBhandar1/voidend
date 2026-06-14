@@ -60,6 +60,7 @@ export const endpoints_table = createTable(
         delayMs: d.integer().notNull().default(0),
         failureRate: d.real().notNull().default(0),
         responseSchema: d.jsonb().notNull().default({}),
+        responseCount: d.integer().notNull().default(1),
         errorSchema: d.jsonb().default(null),
         createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
         updatedAt: d
