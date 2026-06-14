@@ -1,4 +1,4 @@
-import type { Collection } from "./collection-item";
+import type { Collection } from "./endpoint-item";
 
 export type FolderRow = {
     id: string;

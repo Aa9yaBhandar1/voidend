@@ -25,25 +25,20 @@ import {
     AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
 
-import { MethodBadge } from "./collection-item";
-import type { Collection, Endpoint } from "./collection-item";
+import { MethodBadge } from "./endpoint-item";
+import type { Collection, Endpoint } from "./endpoint-item";
 import { TreeNodeMenu } from "./tree-node-menu";
-import { CreateProjectDialog } from "./create-project-dialog";
+import { CreateProjectDialog } from "~/modules/projects/ui/components/create-project-dialog";
 import { CreateFolderDialog } from "./create-folder-dialog";
-import { buildFolderTree } from "./build-folder-tree";
+import { buildFolderTree } from "./folder-item";
 
 import {
     useProjects,
     useCreateProject,
     useUpdateProject,
     useDeleteProject,
-} from "~/app/hooks/use-projects";
-import {
-    useFolders,
-    useCreateFolder,
-    useRenameFolder,
-    useDeleteFolder,
-} from "~/app/hooks/use-folders";
+} from "~/hooks/use-projects";
+import { useFolders, useCreateFolder, useRenameFolder, useDeleteFolder } from "~/hooks/use-folders";
 
 // ---- shared action type ----
 type TreeAction =
