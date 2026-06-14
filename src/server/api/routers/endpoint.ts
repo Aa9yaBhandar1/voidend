@@ -96,12 +96,23 @@ export const endpointRouter = createTRPCRouter({
             }),
         )
         .query(async ({ ctx, input }) => {
+            const project = await ctx.db.query.projects_table.findFirst({
+                where: (p, { eq }) => eq(p.id, input.projectId),
+            });
+
+            if (!project) return null;
+
+            const basePath = project.basePath.replace(/\/$/, "");
+            const strippedPath = input.path.startsWith(basePath)
+                ? input.path.slice(basePath.length) || "/"
+                : input.path;
+
             return ctx.db.query.endpoints_table.findFirst({
                 where: (e, { eq, and }) =>
                     and(
                         eq(e.projectId, input.projectId),
                         eq(e.method, input.method),
-                        eq(e.path, input.path),
+                        eq(e.path, strippedPath),
                     ),
             });
         }),

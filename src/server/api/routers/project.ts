@@ -9,6 +9,7 @@ export const projectRouter = createTRPCRouter({
             z.object({
                 title: z.string().min(1),
                 description: z.string().optional(),
+                basePath: z.string().default("/"),
             }),
         )
         .mutation(async ({ ctx, input }) => {
@@ -36,6 +37,7 @@ export const projectRouter = createTRPCRouter({
                 id: z.string().uuid(),
                 title: z.string().min(1).optional(),
                 description: z.string().optional(),
+                basePath: z.string().optional(),
             }),
         )
         .mutation(async ({ ctx, input }) => {

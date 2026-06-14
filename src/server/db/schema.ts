@@ -9,6 +9,7 @@ export const projects_table = createTable(
         id: d.uuid().primaryKey().defaultRandom(),
         title: d.text().notNull(),
         description: d.text(),
+        basePath: d.text().notNull().default("/"),
         createdAt: d.timestamp({ withTimezone: true }).defaultNow().notNull(),
         updatedAt: d
             .timestamp({ withTimezone: true })
