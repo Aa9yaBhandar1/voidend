@@ -2,10 +2,14 @@ import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import z from "zod";
 import { endpoints_table } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
+import { generateAndSaveData, invalidateEndpointData } from "~/lib/endpoint-data-store";
+import { TRPCError } from "@trpc/server";
 
 const HttpMethod = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
 const responseSchemaShape = z.record(z.string(), z.unknown());
+
+const CACHE_BUSTING_FIELDS = ["responseSchema", "responseCount"] as const;
 
 export const endpointRouter = createTRPCRouter({
     create: publicProcedure
@@ -26,7 +30,31 @@ export const endpointRouter = createTRPCRouter({
             }),
         )
         .mutation(async ({ ctx, input }) => {
+            const existing = await ctx.db.query.endpoints_table.findFirst({
+                where: (e, { eq, and }) =>
+                    and(
+                        eq(e.projectId, input.projectId),
+                        eq(e.method, input.method),
+                        eq(e.path, input.path),
+                    ),
+            });
+
+            if (existing) {
+                throw new TRPCError({
+                    code: "CONFLICT",
+                    message: `An endpoint already exists for ${input.method} ${input.path} in this project.`,
+                });
+            }
+
             const [endpoint] = await ctx.db.insert(endpoints_table).values(input).returning();
+
+            generateAndSaveData(
+                endpoint!.projectId,
+                endpoint!.id,
+                endpoint!.responseSchema,
+                endpoint!.responseCount ?? 1,
+            );
+
             return endpoint;
         }),
 
@@ -75,17 +103,68 @@ export const endpointRouter = createTRPCRouter({
         )
         .mutation(async ({ ctx, input }) => {
             const { id, ...data } = input;
+
+            if (data.method !== undefined || data.path !== undefined) {
+                const current = await ctx.db.query.endpoints_table.findFirst({
+                    where: (e, { eq }) => eq(e.id, id),
+                });
+
+                if (!current) {
+                    throw new TRPCError({ code: "NOT_FOUND", message: "Endpoint not found." });
+                }
+
+                const finalMethod = data.method ?? current.method;
+                const finalPath = data.path ?? current.path;
+
+                const conflict = await ctx.db.query.endpoints_table.findFirst({
+                    where: (e, { eq, and, ne }) =>
+                        and(
+                            eq(e.projectId, current.projectId),
+                            eq(e.method, finalMethod),
+                            eq(e.path, finalPath),
+                            ne(e.id, id),
+                        ),
+                });
+
+                if (conflict) {
+                    throw new TRPCError({
+                        code: "CONFLICT",
+                        message: `An endpoint already exists for ${finalMethod} ${finalPath} in this project.`,
+                    });
+                }
+            }
             const [updated] = await ctx.db
                 .update(endpoints_table)
                 .set(data)
                 .where(eq(endpoints_table.id, id))
                 .returning();
+
+            const needsRegeneration = CACHE_BUSTING_FIELDS.some((field) => field in data);
+
+            if (needsRegeneration) {
+                invalidateEndpointData(updated!.projectId, updated!.id);
+                generateAndSaveData(
+                    updated!.projectId,
+                    updated!.id,
+                    updated!.responseSchema,
+                    updated!.responseCount ?? 1,
+                );
+            }
+
             return updated;
         }),
 
     delete: publicProcedure
         .input(z.object({ id: z.string().uuid() }))
         .mutation(async ({ ctx, input }) => {
+            const endpoint = await ctx.db.query.endpoints_table.findFirst({
+                where: (e, { eq }) => eq(e.id, input.id),
+            });
+
+            if (endpoint) {
+                invalidateEndpointData(endpoint.projectId, endpoint.id);
+            }
+
             await ctx.db.delete(endpoints_table).where(eq(endpoints_table.id, input.id));
         }),
 
