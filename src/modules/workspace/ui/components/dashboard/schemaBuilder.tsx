@@ -93,6 +93,17 @@ function fieldsFromSchema(schema: unknown): SchemaField[] {
           ];
 }
 
+function buildSchema(schemaFields: SchemaField[]) {
+    const formattedSchema: Record<string, string> = {};
+    schemaFields.forEach((field) => {
+        if (field.fieldName.trim()) {
+            formattedSchema[field.fieldName.trim()] = field.dataType;
+        }
+    });
+
+    return formattedSchema;
+}
+
 export function SchemaBuilder({ endpoint, onSuccess }: SchemaBuilderProps) {
     const [resourceName, setResourceName] = useState(endpoint.name);
     const [statusCode, setStatusCode] = useState(endpoint.statusCode);
@@ -135,17 +146,6 @@ export function SchemaBuilder({ endpoint, onSuccess }: SchemaBuilderProps) {
             field.id === id ? { ...field, [key]: value } : field,
         );
         setFields(nextFields);
-    };
-
-    const buildSchema = (schemaFields: SchemaField[]) => {
-        const formattedSchema: Record<string, string> = {};
-        schemaFields.forEach((field) => {
-            if (field.fieldName.trim()) {
-                formattedSchema[field.fieldName.trim()] = field.dataType;
-            }
-        });
-
-        return formattedSchema;
     };
 
     const previewData = useMemo(() => {

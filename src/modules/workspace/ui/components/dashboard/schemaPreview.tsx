@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, Code2, Copy } from "lucide-react";
+import { Code2 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
-import { Button } from "~/components/ui/button";
 import { resolveResponseData } from "~/lib/schema-resolver";
+import { CodeBlock } from "~/components/code-block";
 import type { HttpMethod } from "../sidebar/endpoint-item";
 
 interface SchemaPreviewProps {
@@ -33,31 +33,16 @@ const FAKER_LABELS: Record<string, string> = {
 
 export function SchemaPreview({ endpoint, fetchUrl }: SchemaPreviewProps) {
     const [liveData, setLiveData] = useState<unknown>(null);
-    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [copied, setCopied] = useState(false);
 
     const fields =
         endpoint?.responseSchema && typeof endpoint.responseSchema === "object"
             ? Object.entries(endpoint.responseSchema as Record<string, string>)
             : [];
 
-    const handleCopy = async () => {
-        if (!liveData) return;
-
-        try {
-            await navigator.clipboard.writeText(JSON.stringify(liveData, null, 2));
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 1500);
-        } catch {
-            setError("Couldn't copy the sample response.");
-        }
-    };
-
     const loadSample = useCallback(async () => {
         if (!endpoint) return;
 
-        setLoading(true);
         setError(null);
 
         const fallbackData = resolveResponseData(
@@ -75,16 +60,12 @@ export function SchemaPreview({ endpoint, fetchUrl }: SchemaPreviewProps) {
             setError(
                 "Couldn't fetch a live sample, so the locally generated preview is shown instead.",
             );
-        } finally {
-            setLoading(false);
         }
     }, [endpoint, fetchUrl]);
 
     useEffect(() => {
-        if (endpoint) {
-            void loadSample();
-        }
-    }, [endpoint, loadSample]);
+        void loadSample();
+    }, [loadSample]);
 
     if (!endpoint || fields.length === 0) return null;
 
@@ -136,39 +117,17 @@ export function SchemaPreview({ endpoint, fetchUrl }: SchemaPreviewProps) {
 
                     {/* Live sample response */}
                     <div>
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                            <h3 className="text-sm font-bold font-mono text-muted-foreground">
-                                Sample response
-                            </h3>
-                            <div className="flex items-center justify-between">
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={loadSample}
-                                    disabled={loading}
-                                    className="gap-2"
-                                >
-                                    <RefreshCw
-                                        className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
-                                    />
-                                    {loading ? "Refreshing..." : "Refresh sample"}
-                                </Button>
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={handleCopy}
-                                    disabled={!liveData || loading}
-                                    className="gap-2"
-                                >
-                                    <Copy className="h-4 w-4" />
-                                    {copied ? "Copied" : "Copy"}
-                                </Button>
-                            </div>
-                        </div>
-                        {error && <p className="text-sm text-destructive font-mono">{error}</p>}
-                        <pre className="rounded-lg bg-zinc-950 text-zinc-100 text-xs p-4 overflow-x-auto max-h-80 font-mono">
-                            {liveData ? JSON.stringify(liveData, null, 2) : "No data yet"}
-                        </pre>
+                        <h3 className="mb-3 text-sm font-bold font-mono text-muted-foreground">
+                            Sample response
+                        </h3>
+                        {error && (
+                            <p className="mb-3 text-sm text-destructive font-mono">{error}</p>
+                        )}
+                        <CodeBlock
+                            code={liveData ? JSON.stringify(liveData, null, 2) : "// No data yet"}
+                            lang="json"
+                            maxHeight="320px"
+                        />
                     </div>
                 </CardContent>
             </Card>
