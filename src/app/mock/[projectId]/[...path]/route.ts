@@ -3,6 +3,7 @@ import { db } from "~/server/db";
 import { endpoints_table, projects_table } from "~/server/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getData, generateAndSaveData } from "~/lib/endpoint-data-store";
+import { matchPath, stripBasePath } from "~/lib/mock-path";
 
 interface Params {
     projectId: string;
@@ -14,11 +15,6 @@ type HttpMethod = (typeof METHODS)[number];
 
 function isValidMethod(m: string): m is HttpMethod {
     return METHODS.includes(m as HttpMethod);
-}
-
-function matchPath(pattern: string, incoming: string): boolean {
-    const regex = new RegExp("^" + pattern.replace(/:[^/]+/g, "[^/]+") + "$");
-    return regex.test(incoming);
 }
 
 async function handler(req: NextRequest, { params }: { params: Params }) {
@@ -38,10 +34,7 @@ async function handler(req: NextRequest, { params }: { params: Params }) {
         return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const basePath = project.basePath.replace(/\/$/, "");
-    const strippedPath = incomingPath.startsWith(basePath)
-        ? incomingPath.slice(basePath.length) || "/"
-        : incomingPath;
+    const strippedPath = stripBasePath(incomingPath, project.basePath);
 
     const candidates = await db.query.endpoints_table.findMany({
         where: and(eq(endpoints_table.projectId, projectId), eq(endpoints_table.method, method)),

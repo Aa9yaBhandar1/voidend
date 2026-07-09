@@ -24,3 +24,10 @@ export function resolveSchema(schema: unknown): unknown {
 
     return schema;
 }
+
+/** Mirrors server-side response generation in endpoint-data-store. */
+export function resolveResponseData(schema: unknown, count: number): unknown {
+    return count > 1
+        ? Array.from({ length: count }, () => resolveSchema(schema))
+        : resolveSchema(schema);
+}

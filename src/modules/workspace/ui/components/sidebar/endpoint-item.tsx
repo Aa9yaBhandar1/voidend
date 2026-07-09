@@ -8,12 +8,12 @@ export interface Endpoint {
     id: string;
     name: string;
     method: HttpMethod;
+    folderId?: string | null;
 }
 
 export interface Collection {
     id: string;
     name: string;
-
     children?: Collection[];
     endpoints?: Endpoint[];
 }
@@ -30,7 +30,7 @@ export function MethodBadge({ method }: { method: HttpMethod }) {
     return (
         <span
             className={cn(
-                "shrink-0 w-[46px] text-[10px] font-bold tabular-nums leading-none",
+                "w-11.5 shrink-0 text-[10px] font-bold leading-none tabular-nums",
                 METHOD_STYLES[method],
             )}
         >
