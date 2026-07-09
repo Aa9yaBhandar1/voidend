@@ -29,7 +29,7 @@ function Codebar({ lang, code }: CodebarProps) {
     };
 
     return (
-        <div className="flex h-9 items-center justify-between rounded-t-lg border-b px-3 bg-zinc-900">
+        <div className="flex h-9 items-center justify-between rounded-t-lg border-b border-zinc-800 px-3 bg-zinc-900 shrink-0">
             <span className="text-xs text-zinc-400 font-mono">{lang}</span>
             <Button
                 variant="ghost"
@@ -57,18 +57,22 @@ export function CodeBlock({
 }: CodeBlockProps) {
     return (
         <div
-            className={cn("rounded-lg border border-zinc-800 overflow-hidden shadow-sm", className)}
+            className={cn(
+                "flex flex-col rounded-lg border border-zinc-800 overflow-hidden shadow-sm bg-zinc-950",
+                className,
+            )}
         >
             {showCopyButton && <Codebar lang={lang} code={code} />}
             <ShikiHighlighter
                 language={lang}
                 theme="material-theme-darker"
                 showLanguage={false}
+                style={{ "--max-height": maxHeight } as React.CSSProperties} // Pass maxHeight safely as a CSS Variable
                 className={cn(
-                    "font-mono text-xs",
+                    "font-mono text-xs flex-1",
                     "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-700 hover:scrollbar-thumb-zinc-500",
                     "[&>pre]:my-0 [&>pre]:p-4 [&>pre]:overflow-x-auto",
-                    `[&>pre]:max-h-[${maxHeight}]`,
+                    "[&>pre]:max-h-[var(--max-height)]", // Cleanly bind variable to Tailwind target
                 )}
             >
                 {code}
