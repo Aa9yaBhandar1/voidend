@@ -1,4 +1,3 @@
-// oxlint-disable react/jsx-no-constructed-context-values, react/no-object-type-as-default-prop, no-unused-vars
 "use client";
 
 import { ChevronRight, File, Folder, FolderOpen } from "lucide-react";

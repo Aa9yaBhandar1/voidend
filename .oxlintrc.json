@@ -11,6 +11,7 @@
         "react/react-in-jsx-scope": "off",
         "no-underscore-dangle": "off"
     },
+    "ignorePatterns": ["src/components/ui/**", "src/components/kibo-ui/**"],
     "env": {
         "builtin": true,
         "browser": true,

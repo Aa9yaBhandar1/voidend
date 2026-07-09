@@ -3,7 +3,6 @@ import { db } from "~/server/db";
 import { endpoints_table, projects_table } from "~/server/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getData, generateAndSaveData } from "~/lib/endpoint-data-store";
-import { matchPath, stripBasePath } from "~/lib/mock-path";
 
 interface Params {
     projectId: string;
@@ -13,23 +12,17 @@ interface Params {
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 type HttpMethod = (typeof METHODS)[number];
 
-const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
-    "Access-Control-Max-Age": "86400",
-};
-
 function isValidMethod(m: string): m is HttpMethod {
     return METHODS.includes(m as HttpMethod);
 }
 
-async function handler(req: NextRequest, { params }: { params: Params }) {
-    if (req.method === "OPTIONS") {
-        return new NextResponse(null, { status: 204, headers: corsHeaders });
-    }
+function matchPath(pattern: string, incoming: string): boolean {
+    const regex = new RegExp("^" + pattern.replace(/:[^/]+/g, "[^/]+") + "$");
+    return regex.test(incoming);
+}
 
-    const { projectId, path } = params;
+async function handler(req: NextRequest, { params }: { params: Params }) {
+    const { projectId, path } = await params;
     const incomingPath = "/" + path.join("/");
     const method = req.method;
 
@@ -45,7 +38,10 @@ async function handler(req: NextRequest, { params }: { params: Params }) {
         return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const strippedPath = stripBasePath(incomingPath, project.basePath);
+    const basePath = project.basePath.replace(/\/$/, "");
+    const strippedPath = incomingPath.startsWith(basePath)
+        ? incomingPath.slice(basePath.length) || "/"
+        : incomingPath;
 
     const candidates = await db.query.endpoints_table.findMany({
         where: and(eq(endpoints_table.projectId, projectId), eq(endpoints_table.method, method)),
@@ -76,16 +72,10 @@ async function handler(req: NextRequest, { params }: { params: Params }) {
             endpoint.responseCount ?? 1,
         );
 
-    const response = NextResponse.json(data, {
+    return NextResponse.json(data, {
         status: endpoint.statusCode,
         headers: (endpoint.responseHeaders as Record<string, string>) ?? {},
     });
-
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-        response.headers.set(key, value);
-    });
-
-    return response;
 }
 
 export const GET = handler;
@@ -93,4 +83,3 @@ export const POST = handler;
 export const PUT = handler;
 export const PATCH = handler;
 export const DELETE = handler;
-export const OPTIONS = async () => new NextResponse(null, { status: 204, headers: corsHeaders });

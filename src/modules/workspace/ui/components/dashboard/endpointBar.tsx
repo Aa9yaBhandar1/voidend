@@ -18,10 +18,13 @@ import { buildMockPath } from "~/lib/mock-path";
 import { useEndpointById, useUpdateEndpoint } from "~/hooks/use-endpoints";
 import { useProjectById } from "~/hooks/use-projects";
 
+type Endpoint = NonNullable<ReturnType<typeof useEndpointById>["data"]>;
+
 interface EndpointBarProps {
     projectId: string;
     endpointId: string | null;
     mockOrigin: string;
+    endpoint: Endpoint | null | undefined;
 }
 
 export const EndpointBar = ({ projectId, endpointId, mockOrigin }: EndpointBarProps) => {

@@ -73,10 +73,17 @@ export function ApiClientLayout() {
                         projectId={selectedProjectId}
                         endpointId={selectedEndpointId}
                         mockOrigin={mockOrigin}
+                        endpoint={endpoint}
                     />
                 )}
 
-                {endpoint && fetchUrl && <SchemaPreview endpoint={endpoint} fetchUrl={fetchUrl} />}
+                {endpoint && fetchUrl && (
+                    <SchemaPreview
+                        key={selectedEndpointId}
+                        endpoint={endpoint}
+                        fetchUrl={fetchUrl}
+                    />
+                )}
             </div>
         </div>
     );
