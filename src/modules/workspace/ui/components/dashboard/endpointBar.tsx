@@ -4,33 +4,29 @@ import { toast } from "sonner";
 import { SchemaBuilder } from "./schemaBuilder";
 
 import { Card, CardContent } from "~/components/ui/card";
-import {
-    Dialog,
-    DialogContent,
-    DialogOverlay,
-    DialogPortal,
-    DialogTitle,
-} from "~/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "~/components/ui/dialog";
 import { Settings2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { MethodBadge } from "~/modules/workspace/ui/components/sidebar/endpoint-item";
+import { MethodBadge } from "~/modules/workspace/ui/components/sidebar/method-badge";
 import { buildMockPath } from "~/lib/mock-path";
-import { useEndpointById, useUpdateEndpoint } from "~/hooks/use-endpoints";
-import { useProjectById } from "~/hooks/use-projects";
+import { useUpdateEndpoint } from "~/hooks/use-endpoints";
+
+import type { useEndpointById } from "~/hooks/use-endpoints";
+import type { useProjectById } from "~/hooks/use-projects";
 
 type Endpoint = NonNullable<ReturnType<typeof useEndpointById>["data"]>;
+type Project = NonNullable<ReturnType<typeof useProjectById>["data"]>;
 
 interface EndpointBarProps {
     projectId: string;
     endpointId: string | null;
     mockOrigin: string;
     endpoint: Endpoint | null | undefined;
+    project: Project | null | undefined;
 }
 
-export const EndpointBar = ({ projectId, endpointId, mockOrigin }: EndpointBarProps) => {
+export const EndpointBar = ({ projectId, mockOrigin, endpoint, project }: EndpointBarProps) => {
     const [isSchemaBuilderOpen, setIsSchemaBuilderOpen] = useState(false);
-    const { data: project } = useProjectById(projectId);
-    const { data: endpoint } = useEndpointById(endpointId);
     const updateEndpoint = useUpdateEndpoint();
 
     const mockPath = endpoint
@@ -119,25 +115,18 @@ export const EndpointBar = ({ projectId, endpointId, mockOrigin }: EndpointBarPr
                 </Card>
             </div>
             <Dialog open={isSchemaBuilderOpen && !!endpoint} onOpenChange={setIsSchemaBuilderOpen}>
-                <DialogPortal>
-                    <DialogOverlay className="fixed inset-0 z-50 " />
-                    <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
-                        <DialogContent className="w-full max-w-4xl border md:max-w-3xl sm:max-w-xl">
-                            <DialogTitle className="sr-only">
-                                Schema Builder Resource Manager
-                            </DialogTitle>
+                <DialogContent className="w-full max-w-4xl md:max-w-3xl sm:max-w-xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <DialogTitle className="sr-only">Schema Builder Resource Manager</DialogTitle>
 
-                            <div className="w-full max-h-[85vh] overflow-y-auto rounded-lg">
-                                {endpoint && (
-                                    <SchemaBuilder
-                                        endpoint={endpoint}
-                                        onSuccess={() => setIsSchemaBuilderOpen(false)}
-                                    />
-                                )}
-                            </div>
-                        </DialogContent>
+                    <div className="flex-1 overflow-y-auto p-6">
+                        {endpoint && (
+                            <SchemaBuilder
+                                endpoint={endpoint}
+                                onSuccess={() => setIsSchemaBuilderOpen(false)}
+                            />
+                        )}
                     </div>
-                </DialogPortal>
+                </DialogContent>
             </Dialog>
         </>
     );

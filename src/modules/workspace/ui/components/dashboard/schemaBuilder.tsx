@@ -13,26 +13,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from "~/components/ui/select";
-import { FieldLabel } from "~/components/ui/field";
-import { Card, CardContent, CardFooter, CardHeader } from "~/components/ui/card";
 import { useUpdateEndpoint } from "~/hooks/use-endpoints";
 import { resolveSchema } from "~/lib/schema-resolver";
-import type { HttpMethod } from "../sidebar/endpoint-item";
-
-const FAKER_OPTIONS = [
-    { value: "$faker.string.uuid", label: "ID (UUID)" },
-    { value: "$faker.person.fullName", label: "Full Name" },
-    { value: "$faker.lorem.paragraph", label: "Paragraph" },
-    { value: "$faker.date.anytime", label: "Date" },
-    { value: "$faker.internet.email", label: "Email" },
-    { value: "$faker.phone.number", label: "Phone Number" },
-];
-
-interface SchemaField {
-    id: string;
-    fieldName: string;
-    dataType: string;
-}
+import type { HttpMethod } from "../sidebar/types";
+import {
+    FAKER_OPTIONS,
+    type SchemaField,
+    fieldsFromSchema,
+    buildSchema,
+} from "./schemaBuilder/schema-utils";
 
 interface SchemaBuilderProps {
     endpoint: {
@@ -47,61 +36,6 @@ interface SchemaBuilderProps {
         responseCount: number;
     };
     onSuccess?: () => void;
-}
-
-function normalizeStoredFieldType(value: unknown) {
-    if (typeof value !== "string") return "$faker.string.uuid";
-    if (value.startsWith("$faker.")) return value;
-
-    const legacyTypeMap: Record<string, string> = {
-        uuid: "$faker.string.uuid",
-        fullName: "$faker.person.fullName",
-        paragraph: "$faker.lorem.paragraph",
-        date: "$faker.date.anytime",
-        email: "$faker.internet.email",
-        phoneNumber: "$faker.phone.number",
-    };
-
-    return legacyTypeMap[value] ?? "$faker.string.uuid";
-}
-
-function fieldsFromSchema(schema: unknown): SchemaField[] {
-    if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
-        return [
-            {
-                id: crypto.randomUUID(),
-                fieldName: "",
-                dataType: "$faker.string.uuid",
-            },
-        ];
-    }
-
-    const fields = Object.entries(schema).map(([fieldName, dataType]) => ({
-        id: crypto.randomUUID(),
-        fieldName,
-        dataType: normalizeStoredFieldType(dataType),
-    }));
-
-    return fields.length > 0
-        ? fields
-        : [
-              {
-                  id: crypto.randomUUID(),
-                  fieldName: "",
-                  dataType: "$faker.string.uuid",
-              },
-          ];
-}
-
-function buildSchema(schemaFields: SchemaField[]) {
-    const formattedSchema: Record<string, string> = {};
-    schemaFields.forEach((field) => {
-        if (field.fieldName.trim()) {
-            formattedSchema[field.fieldName.trim()] = field.dataType;
-        }
-    });
-
-    return formattedSchema;
 }
 
 export function SchemaBuilder({ endpoint, onSuccess }: SchemaBuilderProps) {
@@ -183,51 +117,112 @@ export function SchemaBuilder({ endpoint, onSuccess }: SchemaBuilderProps) {
     };
 
     return (
-        <div className="max-w-5xl max-h-5xl flex items-center justify-center">
-            <Card className="w-full max-w-4xl shadow-none rounded-lg bg-background p-4">
-                <CardHeader className="flex justify-between ">
-                    <h3 className=" text-xs font-bold tracking-wider text-muted-foreground uppercase">
-                        NEW RESOURCE
-                    </h3>
-                </CardHeader>
+        <div className="space-y-6">
+            <div>
+                <h3 className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+                    Configure Resource
+                </h3>
+            </div>
 
+            {/* Resource Name and Configurations Row */}
+            <div className="space-y-4">
                 <div>
-                    <h1 className="text-xl font-bold font-mono">Resource name</h1>
-                    <FieldLabel className="text-base text-muted-foreground font-mono">
-                        Enter meaningful resource name, it will be used to generate API endpoints.
-                    </FieldLabel>
+                    <Label htmlFor="resource-name" className="text-sm font-bold font-mono">
+                        Resource name
+                    </Label>
                     <Input
+                        id="resource-name"
                         placeholder="Example: users, comments, articles..."
                         value={resourceName}
                         onChange={(e) => setResourceName(e.target.value)}
-                        className="mt-3 mb-3 h-14 border-0 bg-muted text-lg font-mono shadow-none focus-visible:ring-0"
+                        className="mt-1.5 h-12 border-0 bg-muted text-base font-mono shadow-none focus-visible:ring-0"
                     />
                 </div>
-                <div className="space-y-1 mb-6">
-                    <h2 className="text-xl font-bold font-mono">Schema</h2>
-                    <p className="text-base text-muted-foreground font-mono">
-                        Define Resource schema, it will be used to generate mock data.
+
+                <div className="grid grid-cols-2 gap-4 font-mono md:grid-cols-4">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="status-code" className="text-xs font-bold">
+                            Status Code
+                        </Label>
+                        <Input
+                            id="status-code"
+                            type="number"
+                            value={statusCode}
+                            onChange={(e) => setStatusCode(Number(e.target.value))}
+                            className="bg-muted border-0 h-10 shadow-none focus-visible:ring-0"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="delay-ms" className="text-xs font-bold">
+                            Delay (ms)
+                        </Label>
+                        <Input
+                            id="delay-ms"
+                            type="number"
+                            value={delayMs}
+                            onChange={(e) => setDelayMs(Number(e.target.value))}
+                            className="bg-muted border-0 h-10 shadow-none focus-visible:ring-0"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="failure-rate" className="text-xs font-bold">
+                            Failure Rate (%)
+                        </Label>
+                        <Input
+                            id="failure-rate"
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={failureRate}
+                            onChange={(e) => setFailureRate(Number(e.target.value))}
+                            className="bg-muted border-0 h-10 shadow-none focus-visible:ring-0"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="response-count" className="text-xs font-bold">
+                            Response Count
+                        </Label>
+                        <Input
+                            id="response-count"
+                            type="number"
+                            min={1}
+                            value={responseCount}
+                            onChange={(e) => setResponseCount(Number(e.target.value))}
+                            placeholder="e.g. 10"
+                            className="bg-muted border-0 h-10 shadow-none focus-visible:ring-0"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Schema fields */}
+            <div className="space-y-3">
+                <div>
+                    <h2 className="text-sm font-bold font-mono">Fields Schema</h2>
+                    <p className="text-xs text-muted-foreground font-mono">
+                        Define fields to generate mock data.
                     </p>
                 </div>
-                <CardContent className="space-y-4">
+
+                <div className="space-y-3">
                     {fields.length > 0 && (
-                        <div className="hidden sm:grid grid-cols-[1fr_1fr_auto] gap-4 px-1 text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                        <div className="hidden sm:grid grid-cols-[1fr_1fr_auto] gap-4 px-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider font-mono">
                             <div>Field Name</div>
                             <div>Data Type</div>
-                            <div className="w-9"></div>
+                            <div className="w-10"></div>
                         </div>
                     )}
 
-                    <div className="space-y-3">
+                    <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
                         {fields.map((field) => (
                             <div
                                 key={field.id}
-                                className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center sm:gap-4 p-3 sm:p-0 rounded-lg border border-zinc-100 sm:border-0 dark:border-zinc-800"
+                                className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center sm:gap-4 p-2 sm:p-0 rounded-lg border border-zinc-100 sm:border-0 dark:border-zinc-800"
                             >
                                 <div className="w-full">
-                                    <label className="text-xs font-medium text-zinc-400 sm:hidden block mb-1">
-                                        Field Name
-                                    </label>
                                     <Input
                                         type="text"
                                         placeholder="e.g., user_id, created_at"
@@ -235,21 +230,18 @@ export function SchemaBuilder({ endpoint, onSuccess }: SchemaBuilderProps) {
                                         onChange={(e) =>
                                             updateField(field.id, "fieldName", e.target.value)
                                         }
-                                        className="h-12 border-0 bg-muted font-mono text-lg shadow-none focus-visible:ring-0"
+                                        className="h-10 border-0 bg-muted font-mono text-sm shadow-none focus-visible:ring-0"
                                     />
                                 </div>
 
                                 <div className="w-full">
-                                    <label className="text-xs font-medium text-zinc-400 sm:hidden block mb-1">
-                                        Data Type
-                                    </label>
                                     <Select
                                         value={field.dataType}
                                         onValueChange={(value) => {
                                             if (value) updateField(field.id, "dataType", value);
                                         }}
                                     >
-                                        <SelectTrigger className="h-12 border-0 bg-muted font-mono text-lg shadow-none">
+                                        <SelectTrigger className="h-10 border-0 bg-muted font-mono text-sm shadow-none">
                                             <SelectValue placeholder="Select type" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -268,7 +260,7 @@ export function SchemaBuilder({ endpoint, onSuccess }: SchemaBuilderProps) {
                                         size="icon"
                                         disabled={fields.length === 1}
                                         onClick={() => removeField(field.id)}
-                                        className="text-muted-foreground hover:bg-muted hover:text-destructive h-12 w-12 disabled:opacity-30"
+                                        className="text-muted-foreground hover:bg-muted hover:text-destructive h-10 w-10 disabled:opacity-30"
                                         title="Remove field"
                                     >
                                         <Trash2 className="h-4 w-4" />
@@ -277,98 +269,39 @@ export function SchemaBuilder({ endpoint, onSuccess }: SchemaBuilderProps) {
                             </div>
                         ))}
                     </div>
-                </CardContent>
 
-                <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-4 mt-4 dark:border-zinc-800 dark:bg-zinc-900/40">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-semibold font-mono uppercase tracking-wider text-muted-foreground">
-                            Live sample data
-                        </h3>
-                    </div>
-                    <pre className="max-h-56 overflow-auto rounded-md bg-zinc-950 p-3 text-xs text-zinc-100">
-                        {JSON.stringify(previewData, null, 2)}
-                    </pre>
-                </div>
-
-                <CardFooter className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 border-t border-zinc-100 dark:border-zinc-800 pt-6 mt-6">
                     <Button
                         variant="outline"
                         onClick={addField}
-                        className="flex items-center justify-center gap-2 h-10 order-2 sm:order-1"
+                        size="sm"
+                        className="flex items-center gap-1.5 h-9 font-mono mt-1"
                     >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-3.5 w-3.5" />
                         Add Field
                     </Button>
-
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={updateEndpoint.isPending}
-                        className="flex items-center justify-center gap-2 h-10 order-1 sm:order-2 text-white"
-                    >
-                        {updateEndpoint.isPending ? "Saving..." : "Generate Schema"}
-                    </Button>
-                </CardFooter>
-                <div>
-                    <h3 className="text-xl font-bold font-mono w-full ">Configurations</h3>
-                    <div className="grid grid-cols-2 gap-4 border-t border-border pt-6 mt-6 font-mono md:grid-cols-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="status-code" className="font-bold">
-                                Status Code
-                            </Label>
-                            <Input
-                                id="status-code"
-                                type="number"
-                                value={statusCode}
-                                onChange={(e) => setStatusCode(Number(e.target.value))}
-                                className="bg-muted border-0 shadow-none focus-visible:ring-0"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="delay-ms" className="font-bold">
-                                Delay (ms)
-                            </Label>
-                            <Input
-                                id="delay-ms"
-                                type="number"
-                                value={delayMs}
-                                onChange={(e) => setDelayMs(Number(e.target.value))}
-                                className="bg-muted border-0 shadow-none focus-visible:ring-0"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="failure-rate" className="font-bold">
-                                Failure Rate (%)
-                            </Label>
-                            <Input
-                                id="failure-rate"
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={failureRate}
-                                onChange={(e) => setFailureRate(Number(e.target.value))}
-                                className="bg-muted border-0 shadow-none focus-visible:ring-0"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="response-count" className="font-bold">
-                                Response Count
-                            </Label>
-                            <Input
-                                id="response-count"
-                                type="number"
-                                min={1}
-                                value={responseCount}
-                                onChange={(e) => setResponseCount(Number(e.target.value))}
-                                placeholder="e.g. 10"
-                                className="bg-muted border-0 shadow-none focus-visible:ring-0"
-                            />
-                        </div>
-                    </div>
                 </div>
-            </Card>
+            </div>
+
+            {/* Live sample data preview */}
+            <div className="rounded-lg border border-border bg-muted/40 p-4 font-mono">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                    Live sample data
+                </h3>
+                <pre className="max-h-40 overflow-auto rounded bg-zinc-950 p-3 text-[11px] text-zinc-100">
+                    {JSON.stringify(previewData, null, 2)}
+                </pre>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex justify-end items-center gap-3 border-t pt-4">
+                <Button
+                    onClick={handleSubmit}
+                    disabled={updateEndpoint.isPending}
+                    className="flex items-center gap-2 h-10 text-white font-semibold"
+                >
+                    {updateEndpoint.isPending ? "Saving..." : "Generate Schema"}
+                </Button>
+            </div>
         </div>
     );
 }

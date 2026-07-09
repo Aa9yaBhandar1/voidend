@@ -1,17 +1,23 @@
 "use client";
-import { Sidebar } from "../components/sidebar/workspace-sidebar";
-import { Button } from "~/components/ui/button";
-import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { PanelLeftIcon, Plus } from "lucide-react";
 import { cn } from "~/lib/utils";
+import { Sidebar, type SidebarHandle } from "../components/sidebar/workspace-sidebar";
 import { EndpointBar } from "../components/dashboard/endpointBar";
 import { SchemaPreview } from "../components/dashboard/schemaPreview";
 import { buildMockUrl, getMockOrigin } from "~/lib/mock-path";
 import { useEndpointById } from "~/hooks/use-endpoints";
 import { useProjectById } from "~/hooks/use-projects";
+import { ModeToggle } from "~/components/mode-toggle";
 
-export function ApiClientLayout() {
-    const [isCollapsed, setIsCollapsed] = useState(false);
+export function ApiClientLayout({
+    isCollapsed,
+    onToggle,
+}: {
+    isCollapsed: boolean;
+    onToggle: () => void;
+}) {
+    const sidebarRef = useRef<SidebarHandle>(null);
     const [selectedEndpointId, setSelectedEndpointId] = useState<string | null>(null);
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
     const [mockOrigin, setMockOrigin] = useState(getMockOrigin);
@@ -34,49 +40,77 @@ export function ApiClientLayout() {
             : "";
 
     return (
-        <div className="h-full w-full flex border">
-            <div
+        <div className="relative h-full w-full overflow-hidden">
+            {/* Absolute sidebar */}
+            <aside
                 className={cn(
-                    "h-full shrink-0 overflow-hidden border-r transition-all duration-300",
-                    isCollapsed ? "w-0 border-r-0" : "w-64",
+                    "absolute inset-y-0 left-0 z-20 w-64 flex flex-col bg-background border-r",
+                    "transition-transform duration-200 ease-in-out",
+                    isCollapsed ? "-translate-x-full" : "translate-x-0",
                 )}
             >
-                <div className="h-full w-64">
+                <div className="flex items-center h-10 px-2 gap-1 border-b shrink-0">
+                    <button
+                        onClick={onToggle}
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        aria-label="Close sidebar"
+                    >
+                        <PanelLeftIcon className="h-4 w-4" />
+                    </button>
+                    <span className="font-semibold text-sm text-center flex-1">ghostEnd</span>
+                    <button
+                        onClick={() => sidebarRef.current?.openProjectModal()}
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        aria-label="New project"
+                    >
+                        <Plus className="h-4 w-4" />
+                    </button>
+                </div>
+
+                <div className="flex-1 min-h-0">
                     <Sidebar
+                        ref={sidebarRef}
                         selectedEndpointId={selectedEndpointId}
                         onSelectEndpoint={handleSelectEndpoint}
                         selectedProjectId={selectedProjectId}
                         onSelectProject={setSelectedProjectId}
                     />
                 </div>
+            </aside>
+
+            <div className="absolute inset-x-0 top-0 z-30 h-10 flex items-center pointer-events-none">
+                <div className="flex items-center h-full px-2 pointer-events-auto">
+                    {isCollapsed && (
+                        <button
+                            onClick={onToggle}
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            aria-label="Open sidebar"
+                        >
+                            <PanelLeftIcon className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+                <div className="ml-auto flex items-center h-full px-2 pointer-events-auto transition-colors duration-200">
+                    <ModeToggle />
+                </div>
             </div>
 
-            <div className="flex-1 min-w-0 flex flex-col bg-background overflow-y-auto">
-                <div className="flex items-center gap-2 border-b p-2">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-                        onClick={() => setIsCollapsed((v) => !v)}
-                        aria-label={isCollapsed ? "Open sidebar" : "Close sidebar"}
-                    >
-                        {isCollapsed ? (
-                            <PanelLeftOpenIcon className="h-4 w-4" />
-                        ) : (
-                            <PanelLeftCloseIcon className="h-4 w-4" />
-                        )}
-                    </Button>
-                </div>
-
+            <div
+                className={cn(
+                    "absolute inset-y-0 right-0 flex flex-col overflow-y-auto transition-all duration-200",
+                    isCollapsed ? "left-0" : "left-64",
+                )}
+            >
+                <div className="h-10 shrink-0" />
                 {selectedProjectId && (
                     <EndpointBar
                         projectId={selectedProjectId}
                         endpointId={selectedEndpointId}
                         mockOrigin={mockOrigin}
                         endpoint={endpoint}
+                        project={project}
                     />
                 )}
-
                 {endpoint && fetchUrl && (
                     <SchemaPreview
                         key={selectedEndpointId}

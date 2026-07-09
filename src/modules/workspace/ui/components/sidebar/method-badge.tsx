@@ -1,24 +1,9 @@
 "use client";
 
 import { cn } from "~/lib/utils";
+import type { HttpMethod } from "./types";
 
-export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-
-export interface Endpoint {
-    id: string;
-    name: string;
-    method: HttpMethod;
-    folderId?: string | null;
-}
-
-export interface Collection {
-    id: string;
-    name: string;
-    children?: Collection[];
-    endpoints?: Endpoint[];
-}
-
-const METHOD_STYLES: Record<HttpMethod, string> = {
+export const METHOD_STYLES: Record<HttpMethod, string> = {
     GET: "text-emerald-500",
     POST: "text-amber-500",
     PUT: "text-blue-500",
