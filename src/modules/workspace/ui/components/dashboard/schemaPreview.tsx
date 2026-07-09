@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Code2 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
-import { resolveResponseData } from "~/lib/schema-resolver";
 import { CodeBlock } from "~/components/code-block";
-import type { HttpMethod } from "../sidebar/endpoint-item";
+import type { HttpMethod } from "../sidebar/types";
 
 interface SchemaPreviewProps {
     endpoint:
@@ -45,21 +44,13 @@ export function SchemaPreview({ endpoint, fetchUrl }: SchemaPreviewProps) {
 
         setError(null);
 
-        const fallbackData = resolveResponseData(
-            endpoint.responseSchema,
-            endpoint.responseCount ?? 1,
-        );
-        setLiveData(fallbackData);
-
         try {
             const res = await fetch(fetchUrl, { method: endpoint.method });
             if (!res.ok) throw new Error("Request failed");
             const json = await res.json();
             setLiveData(json);
         } catch {
-            setError(
-                "Couldn't fetch a live sample, so the locally generated preview is shown instead.",
-            );
+            setError("Couldn't fetch a live sample.");
         }
     }, [endpoint, fetchUrl]);
 
@@ -123,11 +114,13 @@ export function SchemaPreview({ endpoint, fetchUrl }: SchemaPreviewProps) {
                         {error && (
                             <p className="mb-3 text-sm text-destructive font-mono">{error}</p>
                         )}
-                        <CodeBlock
-                            code={liveData ? JSON.stringify(liveData, null, 2) : "// No data yet"}
-                            lang="json"
-                            maxHeight="320px"
-                        />
+                        {liveData ? (
+                            <CodeBlock
+                                code={JSON.stringify(liveData, null, 2)}
+                                lang="json"
+                                maxHeight="320px"
+                            />
+                        ) : null}
                     </div>
                 </CardContent>
             </Card>

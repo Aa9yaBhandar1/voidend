@@ -74,6 +74,7 @@ export function ApiClientLayout() {
                         endpointId={selectedEndpointId}
                         mockOrigin={mockOrigin}
                         endpoint={endpoint}
+                        project={project}
                     />
                 )}
 

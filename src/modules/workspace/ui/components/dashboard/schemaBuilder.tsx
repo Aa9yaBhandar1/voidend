@@ -17,22 +17,13 @@ import { FieldLabel } from "~/components/ui/field";
 import { Card, CardContent, CardFooter, CardHeader } from "~/components/ui/card";
 import { useUpdateEndpoint } from "~/hooks/use-endpoints";
 import { resolveSchema } from "~/lib/schema-resolver";
-import type { HttpMethod } from "../sidebar/endpoint-item";
-
-const FAKER_OPTIONS = [
-    { value: "$faker.string.uuid", label: "ID (UUID)" },
-    { value: "$faker.person.fullName", label: "Full Name" },
-    { value: "$faker.lorem.paragraph", label: "Paragraph" },
-    { value: "$faker.date.anytime", label: "Date" },
-    { value: "$faker.internet.email", label: "Email" },
-    { value: "$faker.phone.number", label: "Phone Number" },
-];
-
-interface SchemaField {
-    id: string;
-    fieldName: string;
-    dataType: string;
-}
+import type { HttpMethod } from "../sidebar/types";
+import {
+    FAKER_OPTIONS,
+    type SchemaField,
+    fieldsFromSchema,
+    buildSchema,
+} from "./schemaBuilder/schema-utils";
 
 interface SchemaBuilderProps {
     endpoint: {
@@ -47,61 +38,6 @@ interface SchemaBuilderProps {
         responseCount: number;
     };
     onSuccess?: () => void;
-}
-
-function normalizeStoredFieldType(value: unknown) {
-    if (typeof value !== "string") return "$faker.string.uuid";
-    if (value.startsWith("$faker.")) return value;
-
-    const legacyTypeMap: Record<string, string> = {
-        uuid: "$faker.string.uuid",
-        fullName: "$faker.person.fullName",
-        paragraph: "$faker.lorem.paragraph",
-        date: "$faker.date.anytime",
-        email: "$faker.internet.email",
-        phoneNumber: "$faker.phone.number",
-    };
-
-    return legacyTypeMap[value] ?? "$faker.string.uuid";
-}
-
-function fieldsFromSchema(schema: unknown): SchemaField[] {
-    if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
-        return [
-            {
-                id: crypto.randomUUID(),
-                fieldName: "",
-                dataType: "$faker.string.uuid",
-            },
-        ];
-    }
-
-    const fields = Object.entries(schema).map(([fieldName, dataType]) => ({
-        id: crypto.randomUUID(),
-        fieldName,
-        dataType: normalizeStoredFieldType(dataType),
-    }));
-
-    return fields.length > 0
-        ? fields
-        : [
-              {
-                  id: crypto.randomUUID(),
-                  fieldName: "",
-                  dataType: "$faker.string.uuid",
-              },
-          ];
-}
-
-function buildSchema(schemaFields: SchemaField[]) {
-    const formattedSchema: Record<string, string> = {};
-    schemaFields.forEach((field) => {
-        if (field.fieldName.trim()) {
-            formattedSchema[field.fieldName.trim()] = field.dataType;
-        }
-    });
-
-    return formattedSchema;
 }
 
 export function SchemaBuilder({ endpoint, onSuccess }: SchemaBuilderProps) {

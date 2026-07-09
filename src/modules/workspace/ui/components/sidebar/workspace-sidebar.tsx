@@ -4,10 +4,8 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { TreeProvider, TreeView } from "~/components/kibo-ui/tree";
-import { CreateFolderDialog } from "./dialog/create-folder-dialog";
-import { CreateEndpointDialog } from "./dialog/create-endpoint-dialog";
-import { CreateProjectDialog } from "./dialog/create-project-dialog";
-import { ProjectTreeNode } from "./treeNode/project-tree-node";
+import { CreateFolderDialog, CreateEndpointDialog, CreateProjectDialog } from "./dialogs";
+import { ProjectTreeNode } from "./sidebar-tree";
 import {
     useCreateProject,
     useDeleteProject,
@@ -16,7 +14,7 @@ import {
 } from "~/hooks/use-projects";
 import { useCreateFolder, useDeleteFolder, useRenameFolder } from "~/hooks/use-folders";
 import { useCreateEndpoint, useDeleteEndpoint, useUpdateEndpoint } from "~/hooks/use-endpoints";
-import type { ModalTarget, SidebarProject } from "./sidebar-types";
+import type { ModalTarget, SidebarProject } from "./types";
 
 export function Sidebar({
     selectedEndpointId,

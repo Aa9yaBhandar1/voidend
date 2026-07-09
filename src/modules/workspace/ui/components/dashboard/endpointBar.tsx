@@ -13,24 +13,26 @@ import {
 } from "~/components/ui/dialog";
 import { Settings2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { MethodBadge } from "~/modules/workspace/ui/components/sidebar/endpoint-item";
+import { MethodBadge } from "~/modules/workspace/ui/components/sidebar/method-badge";
 import { buildMockPath } from "~/lib/mock-path";
-import { useEndpointById, useUpdateEndpoint } from "~/hooks/use-endpoints";
-import { useProjectById } from "~/hooks/use-projects";
+import { useUpdateEndpoint } from "~/hooks/use-endpoints";
+
+import type { useEndpointById } from "~/hooks/use-endpoints";
+import type { useProjectById } from "~/hooks/use-projects";
 
 type Endpoint = NonNullable<ReturnType<typeof useEndpointById>["data"]>;
+type Project = NonNullable<ReturnType<typeof useProjectById>["data"]>;
 
 interface EndpointBarProps {
     projectId: string;
     endpointId: string | null;
     mockOrigin: string;
     endpoint: Endpoint | null | undefined;
+    project: Project | null | undefined;
 }
 
-export const EndpointBar = ({ projectId, endpointId, mockOrigin }: EndpointBarProps) => {
+export const EndpointBar = ({ projectId, mockOrigin, endpoint, project }: EndpointBarProps) => {
     const [isSchemaBuilderOpen, setIsSchemaBuilderOpen] = useState(false);
-    const { data: project } = useProjectById(projectId);
-    const { data: endpoint } = useEndpointById(endpointId);
     const updateEndpoint = useUpdateEndpoint();
 
     const mockPath = endpoint
