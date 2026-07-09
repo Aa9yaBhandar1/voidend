@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { forwardRef, useImperativeHandle, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { TreeProvider, TreeView } from "~/components/kibo-ui/tree";
@@ -16,17 +16,22 @@ import { useCreateFolder, useDeleteFolder, useRenameFolder } from "~/hooks/use-f
 import { useCreateEndpoint, useDeleteEndpoint, useUpdateEndpoint } from "~/hooks/use-endpoints";
 import type { ModalTarget, SidebarProject } from "./types";
 
-export function Sidebar({
-    selectedEndpointId,
-    onSelectEndpoint,
-    selectedProjectId,
-    onSelectProject,
-}: {
-    selectedEndpointId: string | null;
-    onSelectEndpoint: (id: string, projectId: string) => void;
-    selectedProjectId: string | null;
-    onSelectProject: (id: string) => void;
-}) {
+export interface SidebarHandle {
+    openProjectModal: () => void;
+}
+
+export const Sidebar = forwardRef<
+    SidebarHandle,
+    {
+        selectedEndpointId: string | null;
+        onSelectEndpoint: (id: string, projectId: string) => void;
+        selectedProjectId: string | null;
+        onSelectProject: (id: string) => void;
+    }
+>(function Sidebar(
+    { selectedEndpointId, onSelectEndpoint, selectedProjectId, onSelectProject },
+    ref,
+) {
     const { data: projects = [] } = useProjects();
     const [renamingId, setRenamingId] = useState<string | null>(null);
     const [modal, setModal] = useState<ModalTarget | null>(null);
@@ -34,33 +39,20 @@ export function Sidebar({
     const createFolder = useCreateFolder();
     const deleteFolder = useDeleteFolder();
     const updateFolder = useRenameFolder();
-
     const createProject = useCreateProject();
     const deleteProject = useDeleteProject();
     const updateProject = useUpdateProject();
-
     const createEndpoint = useCreateEndpoint();
     const deleteEndpoint = useDeleteEndpoint();
     const updateEndpoint = useUpdateEndpoint();
 
+    useImperativeHandle(ref, () => ({
+        openProjectModal: () => setModal({ kind: "project" }),
+    }));
+
     return (
         <>
-            <aside className="flex h-full w-60 flex-col border-r bg-background">
-                <div className="flex items-center justify-between border-b px-3 py-2.5">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Collections
-                    </span>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => setModal({ kind: "project" })}
-                        title="New project"
-                    >
-                        <Plus className="h-3.5 w-3.5" />
-                    </Button>
-                </div>
-
+            <aside className="flex h-full w-full flex-col bg-background">
                 <div className="flex-1 overflow-y-auto">
                     {projects.length === 0 ? (
                         <div className="mt-10 flex flex-col items-center gap-2 px-4 text-center text-xs text-muted-foreground">
@@ -120,7 +112,6 @@ export function Sidebar({
                     setModal(null);
                 }}
             />
-
             <CreateFolderDialog
                 open={modal?.kind === "folder"}
                 onOpenChange={(open) => {
@@ -136,7 +127,6 @@ export function Sidebar({
                     setModal(null);
                 }}
             />
-
             <CreateEndpointDialog
                 open={modal?.kind === "endpoint"}
                 onOpenChange={(open) => {
@@ -160,4 +150,4 @@ export function Sidebar({
             />
         </>
     );
-}
+});
