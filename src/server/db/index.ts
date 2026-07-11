@@ -1,14 +1,12 @@
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-
-import { env } from "~/env";
+import fs from "fs";
+import path from "path";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
+import { getDataDir } from "~/lib/endpoint-data-store";
 
-const globalForDb = globalThis as unknown as {
-    conn: postgres.Sql | undefined;
-};
+const dbDir = getDataDir();
+fs.mkdirSync(dbDir, { recursive: true });
 
-const conn = globalForDb.conn ?? postgres(env.DATABASE_URL);
-if (env.NODE_ENV !== "production") globalForDb.conn = conn;
-
-export const db = drizzle(conn, { schema });
+const sqlite = new Database(path.join(dbDir, "voidend.db"));
+export const db = drizzle(sqlite, { schema });
