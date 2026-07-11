@@ -3,7 +3,7 @@ import os from "os";
 import path from "path";
 import { resolveResponseData } from "./schema-resolver";
 
-function getDataDir(): string {
+export function getDataDir(): string {
     switch (process.platform) {
         case "linux":
             return path.join(
