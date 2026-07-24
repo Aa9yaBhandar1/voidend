@@ -5,7 +5,8 @@ import { SchemaBuilder } from "./schemaBuilder";
 
 import { Card, CardContent } from "~/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "~/components/ui/dialog";
-import { Settings2 } from "lucide-react";
+import { ConfirmDialog } from "~/components/confirm-dialog";
+import { Copy, Check, Settings2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { MethodBadge } from "~/modules/workspace/ui/components/sidebar/method-badge";
 import { buildMockPath } from "~/lib/mock-path";
@@ -27,6 +28,8 @@ interface EndpointBarProps {
 
 export const EndpointBar = ({ projectId, mockOrigin, endpoint, project }: EndpointBarProps) => {
     const [isSchemaBuilderOpen, setIsSchemaBuilderOpen] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
     const updateEndpoint = useUpdateEndpoint();
 
     const mockPath = endpoint
@@ -35,8 +38,30 @@ export const EndpointBar = ({ projectId, mockOrigin, endpoint, project }: Endpoi
 
     const mockHost = mockOrigin.replace(/^https?:\/\//, "");
     const mockProtocol = mockOrigin.startsWith("https") ? "https://" : "http://";
+    const fullEndpointUrl = endpoint
+        ? `${mockProtocol}${mockHost}/mock/${projectId}${mockPath}`
+        : `${mockProtocol}${mockHost}/mock/${projectId}${mockPath}`;
+
+    const handleCopy = async () => {
+        if (!fullEndpointUrl) return;
+
+        try {
+            await navigator.clipboard.writeText(fullEndpointUrl);
+            setCopied(true);
+            toast.success("Endpoint URL copied");
+            window.setTimeout(() => setCopied(false), 1500);
+        } catch {
+            toast.error("Failed to copy endpoint URL");
+        }
+    };
 
     const handleResetAll = () => {
+        if (!endpoint) return;
+
+        setIsResetConfirmOpen(true);
+    };
+
+    const confirmResetAll = () => {
         if (!endpoint) return;
 
         updateEndpoint.mutate(
@@ -68,16 +93,35 @@ export const EndpointBar = ({ projectId, mockOrigin, endpoint, project }: Endpoi
                         <h2 className="text-xl font-bold font-mono tracking-tight">API endpoint</h2>
 
                         {/* Endpoint URL Presentation */}
-                        <div className="flex items-center flex-wrap gap-1 font-mono text-sm sm:text-base select-all">
-                            <span className="text-blue-500">{mockProtocol}</span>
-                            <span className="bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 px-1 rounded font-medium">
-                                {mockHost}
-                            </span>
-                            <span className="text-zinc-400">/mock/{projectId}</span>
-                            <span className="bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400 px-1 rounded font-medium">
-                                {mockPath}
-                            </span>
-                            {endpoint && <MethodBadge method={endpoint.method} />}
+                        <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-background/60 p-3 dark:border-zinc-800">
+                            <div className="flex flex-wrap items-center justify-between">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {endpoint && <MethodBadge method={endpoint.method} />}
+                                    <div className="flex min-w-0 flex-wrap items-center gap-1 font-mono text-sm sm:text-base">
+                                        <span className="text-blue-500">{mockProtocol}</span>
+                                        <span className="rounded bg-blue-100 px-1.5 py-0.5 font-medium text-blue-700 dark:bg-blue-950/50 dark:text-blue-400">
+                                            {mockHost}
+                                        </span>
+                                        <span className="text-zinc-400">/mock/{projectId}</span>
+                                        <span className="rounded bg-orange-100 px-1.5 py-0.5 font-medium text-orange-700 dark:bg-orange-950/50 dark:text-orange-400">
+                                            {mockPath}
+                                        </span>
+                                    </div>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleCopy}
+                                    className="h-8 gap-2"
+                                >
+                                    {copied ? (
+                                        <Check className="h-4 w-4" />
+                                    ) : (
+                                        <Copy className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </div>
                         </div>
 
                         {/* Controls Bar */}
@@ -94,22 +138,15 @@ export const EndpointBar = ({ projectId, mockOrigin, endpoint, project }: Endpoi
                             </Button>
 
                             {/* Utility Bulk Actions */}
-                            <div className="flex items-center gap-2 self-end sm:self-auto">
-                                <Button
-                                    variant="secondary"
-                                    className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 h-10 font-medium rounded-xl text-sm px-4"
-                                >
-                                    Generate all
-                                </Button>
-                                <Button
-                                    variant="secondary"
-                                    disabled={!endpoint || updateEndpoint.isPending}
-                                    onClick={handleResetAll}
-                                    className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 h-10 font-medium rounded-xl text-sm px-4"
-                                >
-                                    {updateEndpoint.isPending ? "Resetting..." : "Reset all"}
-                                </Button>
-                            </div>
+
+                            <Button
+                                variant="secondary"
+                                disabled={!endpoint || updateEndpoint.isPending}
+                                onClick={handleResetAll}
+                                className="bg-zinc-100 hover:bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 h-10 font-medium rounded-xl text-sm px-4"
+                            >
+                                {updateEndpoint.isPending ? "Resetting..." : "Reset all"}
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -128,6 +165,17 @@ export const EndpointBar = ({ projectId, mockOrigin, endpoint, project }: Endpoi
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <ConfirmDialog
+                open={isResetConfirmOpen}
+                onOpenChange={setIsResetConfirmOpen}
+                title="Reset schema?"
+                description="This will restore the endpoint schema and response settings to the default values."
+                confirmLabel="Reset"
+                cancelLabel="Cancel"
+                destructive
+                onConfirm={confirmResetAll}
+            />
         </>
     );
 };
