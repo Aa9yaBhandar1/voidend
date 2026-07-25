@@ -7,11 +7,19 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { MoreHorizontalIcon, FolderPlusIcon, PencilIcon, TrashIcon, FilePlus2 } from "lucide-react";
+import {
+    MoreHorizontalIcon,
+    FolderPlusIcon,
+    PencilIcon,
+    TrashIcon,
+    FilePlus2,
+    KeyRound,
+} from "lucide-react";
 
 export function TreeNodeMenu({
     onNewFolder,
     onNewFile,
+    onSettings,
     onRename,
     onDelete,
     showNewFolder = true,
@@ -19,6 +27,7 @@ export function TreeNodeMenu({
 }: {
     onNewFolder?: () => void;
     onNewFile?: () => void;
+    onSettings?: () => void;
     onRename: () => void;
     onDelete: () => void;
     showNewFolder?: boolean;
@@ -55,6 +64,11 @@ export function TreeNodeMenu({
                     )}
                     {(showNewFolder || showNewFile) && (onNewFolder ?? onNewFile) && (
                         <DropdownMenuSeparator />
+                    )}
+                    {onSettings && (
+                        <DropdownMenuItem onClick={onSettings}>
+                            <KeyRound className="mr-2 h-4 w-4 text-primary" /> Settings & Secret
+                        </DropdownMenuItem>
                     )}
                     <DropdownMenuItem onClick={onRename}>
                         <PencilIcon className="mr-2 h-4 w-4" /> Rename

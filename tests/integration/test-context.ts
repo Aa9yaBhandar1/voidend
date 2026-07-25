@@ -16,6 +16,7 @@ export function createRealCtx() {
       title TEXT NOT NULL,
       description TEXT,
       basePath TEXT NOT NULL DEFAULT '/',
+      secret TEXT NOT NULL,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch()),
       updatedAt INTEGER NOT NULL DEFAULT (unixepoch())
     );
@@ -43,6 +44,16 @@ export function createRealCtx() {
       responseSchema TEXT NOT NULL DEFAULT '{}',
       responseCount INTEGER NOT NULL DEFAULT 1,
       errorSchema TEXT DEFAULT NULL,
+      createdAt INTEGER NOT NULL DEFAULT (unixepoch()),
+      updatedAt INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    CREATE TABLE voidend_auth_configs (
+      id TEXT PRIMARY KEY,
+      endpointId TEXT NOT NULL REFERENCES voidend_endpoints(id) ON DELETE CASCADE,
+      isLoginEndpoint INTEGER NOT NULL DEFAULT 0,
+      requiresAuth INTEGER NOT NULL DEFAULT 0,
+      tokenExpirySeconds INTEGER NOT NULL DEFAULT 3600,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch()),
       updatedAt INTEGER NOT NULL DEFAULT (unixepoch())
     );

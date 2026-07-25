@@ -1,6 +1,7 @@
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { index, sqliteTableCreator } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+import crypto from "node:crypto";
 
 export const createTable = sqliteTableCreator((name) => `voidend_${name}`);
 
@@ -14,6 +15,10 @@ export const projects_table = createTable(
         title: d.text().notNull(),
         description: d.text(),
         basePath: d.text().notNull().default("/"),
+        secret: d
+            .text()
+            .notNull()
+            .$defaultFn(() => crypto.randomBytes(32).toString("hex")),
         createdAt: d
             .integer({ mode: "timestamp" })
             .notNull()
@@ -95,4 +100,31 @@ export const endpoints_table = createTable(
         index("endpoint_folder_idx").on(t.folderId),
         index("endpoint_path_idx").on(t.projectId, t.method, t.path),
     ],
+);
+
+export const auth_configs_table = createTable(
+    "auth_configs",
+    (d) => ({
+        id: d
+            .text()
+            .primaryKey()
+            .$defaultFn(() => crypto.randomUUID()),
+        endpointId: d
+            .text()
+            .notNull()
+            .references(() => endpoints_table.id, { onDelete: "cascade" }),
+        isLoginEndpoint: d.integer({ mode: "boolean" }).notNull().default(false),
+        requiresAuth: d.integer({ mode: "boolean" }).notNull().default(false),
+        tokenExpirySeconds: d.integer().notNull().default(3600),
+        createdAt: d
+            .integer({ mode: "timestamp" })
+            .notNull()
+            .default(sql`(unixepoch())`),
+        updatedAt: d
+            .integer({ mode: "timestamp" })
+            .notNull()
+            .default(sql`(unixepoch())`)
+            .$onUpdate(() => new Date()),
+    }),
+    (t) => [index("auth_config_endpoint_idx").on(t.endpointId)],
 );

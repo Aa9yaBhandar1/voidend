@@ -5,6 +5,11 @@ export interface Endpoint {
     name: string;
     method: HttpMethod;
     folderId?: string | null;
+    authConfig?: {
+        isLoginEndpoint?: boolean;
+        requiresAuth?: boolean;
+        tokenExpirySeconds?: number;
+    } | null;
 }
 
 export interface Collection {
@@ -23,6 +28,7 @@ export type FolderRow = {
 
 export type ModalTarget =
     | { kind: "project"; projectId?: never; parentId?: never; folderId?: never }
+    | { kind: "projectSettings"; projectId: string; parentId?: never; folderId?: never }
     | { kind: "folder"; projectId: string; parentId?: string }
     | { kind: "endpoint"; projectId: string; folderId?: string };
 

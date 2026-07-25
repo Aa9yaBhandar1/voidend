@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "~/server/db";
-import { endpoints_table, projects_table } from "~/server/db/schema";
+import { auth_configs_table, endpoints_table, projects_table } from "~/server/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getData, generateAndSaveData } from "~/lib/endpoint-data-store";
+import jwt from "jsonwebtoken";
 
 interface Params {
     projectId: string;
@@ -21,7 +22,7 @@ function matchPath(pattern: string, incoming: string): boolean {
     return regex.test(incoming);
 }
 
-async function handler(req: NextRequest, { params }: { params: Params }) {
+async function handler(req: NextRequest, { params }: { params: Params | Promise<Params> }) {
     const { projectId, path } = await params;
     const incomingPath = "/" + path.join("/");
     const method = req.method;
@@ -33,7 +34,6 @@ async function handler(req: NextRequest, { params }: { params: Params }) {
     const project = await db.query.projects_table.findFirst({
         where: eq(projects_table.id, projectId),
     });
-
     if (!project) {
         return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
@@ -46,11 +46,44 @@ async function handler(req: NextRequest, { params }: { params: Params }) {
     const candidates = await db.query.endpoints_table.findMany({
         where: and(eq(endpoints_table.projectId, projectId), eq(endpoints_table.method, method)),
     });
-
     const endpoint = candidates.find((e) => matchPath(e.path, strippedPath));
-
     if (!endpoint) {
         return NextResponse.json({ error: "No matching endpoint found" }, { status: 404 });
+    }
+
+    const authConfig = await db.query.auth_configs_table.findFirst({
+        where: eq(auth_configs_table.endpointId, endpoint.id),
+    });
+
+    if (authConfig?.isLoginEndpoint) {
+        const data =
+            getData(projectId, endpoint.id) ??
+            generateAndSaveData(
+                projectId,
+                endpoint.id,
+                endpoint.responseSchema,
+                endpoint.responseCount ?? 1,
+            );
+
+        const token = jwt.sign({ sub: endpoint.id }, project.secret, {
+            expiresIn: authConfig.tokenExpirySeconds,
+        });
+
+        return NextResponse.json({ token, data }, { status: endpoint.statusCode });
+    }
+
+    if (authConfig?.requiresAuth) {
+        const header = req.headers.get("authorization");
+        const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
+
+        if (!token) {
+            return NextResponse.json({ error: "Missing token" }, { status: 401 });
+        }
+        try {
+            jwt.verify(token, project.secret);
+        } catch {
+            return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+        }
     }
 
     if (endpoint.delayMs > 0) {

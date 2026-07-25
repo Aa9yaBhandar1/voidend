@@ -62,10 +62,24 @@ export const endpointRouter = createTRPCRouter({
     getByProject: publicProcedure
         .input(z.object({ projectId: z.string().uuid() }))
         .query(async ({ ctx, input }) => {
-            return ctx.db.query.endpoints_table.findMany({
+            const endpoints = await ctx.db.query.endpoints_table.findMany({
                 where: (e, { eq }) => eq(e.projectId, input.projectId),
                 orderBy: (e, { asc }) => [asc(e.path), asc(e.method)],
             });
+
+            if (endpoints.length === 0) return [];
+
+            const endpointIds = endpoints.map((e) => e.id);
+            const authConfigs = await ctx.db.query.auth_configs_table.findMany({
+                where: (a, { inArray }) => inArray(a.endpointId, endpointIds),
+            });
+            const configMap = new Map(authConfigs.map((c) => [c.endpointId, c]));
+
+            return endpoints.map((e) =>
+                Object.assign({}, e, {
+                    authConfig: configMap.get(e.id) ?? null,
+                }),
+            );
         }),
 
     getByFolder: publicProcedure
@@ -84,7 +98,16 @@ export const endpointRouter = createTRPCRouter({
                 where: (e, { eq }) => eq(e.id, input.id),
             });
 
-            return endpoint ?? null;
+            if (!endpoint) return null;
+
+            const authConfig = await ctx.db.query.auth_configs_table.findFirst({
+                where: (a, { eq }) => eq(a.endpointId, endpoint.id),
+            });
+
+            return {
+                ...endpoint,
+                authConfig: authConfig ?? null,
+            };
         }),
 
     update: publicProcedure

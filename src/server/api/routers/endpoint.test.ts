@@ -25,6 +25,7 @@ function createCtx() {
       title TEXT NOT NULL,
       description TEXT,
       basePath TEXT NOT NULL DEFAULT '/',
+      secret TEXT NOT NULL,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch()),
       updatedAt INTEGER NOT NULL DEFAULT (unixepoch())
     );
@@ -52,6 +53,16 @@ function createCtx() {
       responseSchema TEXT NOT NULL DEFAULT '{}',
       responseCount INTEGER NOT NULL DEFAULT 1,
       errorSchema TEXT DEFAULT NULL,
+      createdAt INTEGER NOT NULL DEFAULT (unixepoch()),
+      updatedAt INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    CREATE TABLE voidend_auth_configs (
+      id TEXT PRIMARY KEY,
+      endpointId TEXT NOT NULL REFERENCES voidend_endpoints(id) ON DELETE CASCADE,
+      isLoginEndpoint INTEGER NOT NULL DEFAULT 0,
+      requiresAuth INTEGER NOT NULL DEFAULT 0,
+      tokenExpirySeconds INTEGER NOT NULL DEFAULT 3600,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch()),
       updatedAt INTEGER NOT NULL DEFAULT (unixepoch())
     );
@@ -154,6 +165,19 @@ describe("endpointRouter", () => {
                 ["/a", "POST"],
                 ["/b", "GET"],
             ]);
+        });
+
+        it("includes authConfig for endpoints in getByProject", async () => {
+            const created = await caller.create({ name: "A", projectId, path: "/a" });
+            const [authConfig] = await ctx.db
+                .insert(schema.auth_configs_table)
+                .values({ endpointId: created!.id, requiresAuth: true })
+                .returning();
+
+            const endpoints = await caller.getByProject({ projectId });
+            expect(endpoints).toHaveLength(1);
+            expect(endpoints[0]?.authConfig?.id).toBe(authConfig!.id);
+            expect(endpoints[0]?.authConfig?.requiresAuth).toBe(true);
         });
 
         it("returns empty array when project has no endpoints", async () => {

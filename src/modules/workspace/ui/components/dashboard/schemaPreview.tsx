@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Code2, RotateCw } from "lucide-react";
+import { Code2, RotateCw, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { CodeBlock } from "~/components/code-block";
 import { Button } from "~/components/ui/button";
@@ -16,18 +16,27 @@ interface SchemaPreviewProps {
               delayMs: number;
               failureRate: number;
               responseCount: number;
+              authConfig?: {
+                  isLoginEndpoint?: boolean;
+                  requiresAuth?: boolean;
+              } | null;
           }
         | null
         | undefined;
     fetchUrl: string;
+    /** JWT bearer token to use when the endpoint requiresAuth */
+    bearerToken?: string | null;
 }
 
-export function SchemaPreview({ endpoint, fetchUrl }: SchemaPreviewProps) {
+export function SchemaPreview({ endpoint, fetchUrl, bearerToken }: SchemaPreviewProps) {
     const [liveData, setLiveData] = useState<unknown>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [progress, setProgress] = useState(0);
     const animationFrameRef = useRef<number | null>(null);
+
+    const requiresAuth = !!endpoint?.authConfig?.requiresAuth;
+    const isLoginEndpoint = !!endpoint?.authConfig?.isLoginEndpoint;
 
     const fields =
         endpoint?.responseSchema && typeof endpoint.responseSchema === "object"
@@ -58,7 +67,12 @@ export function SchemaPreview({ endpoint, fetchUrl }: SchemaPreviewProps) {
         animationFrameRef.current = window.requestAnimationFrame(tick);
 
         try {
-            const res = await fetch(fetchUrl, { method: endpoint.method });
+            const headers: HeadersInit = {};
+            if (requiresAuth && bearerToken) {
+                headers["Authorization"] = `Bearer ${bearerToken}`;
+            }
+
+            const res = await fetch(fetchUrl, { method: endpoint.method, headers });
             const json = await res.json().catch(() => null);
             if (res.status === 500 && json) {
                 setLiveData(json);
@@ -84,7 +98,7 @@ export function SchemaPreview({ endpoint, fetchUrl }: SchemaPreviewProps) {
             setProgress(100);
             setIsLoading(false);
         }
-    }, [endpoint, fetchUrl]);
+    }, [endpoint, fetchUrl, requiresAuth, bearerToken]);
 
     useEffect(() => {
         void loadSample();
@@ -109,6 +123,38 @@ export function SchemaPreview({ endpoint, fetchUrl }: SchemaPreviewProps) {
                 </CardHeader>
 
                 <CardContent className="space-y-6">
+                    {/* Auth notice banners */}
+                    {requiresAuth && !bearerToken && (
+                        <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
+                            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>
+                                This endpoint requires authentication. No login endpoint was found
+                                in this project — add one to auto-fetch a token for the preview.
+                            </span>
+                        </div>
+                    )}
+                    {requiresAuth && !!bearerToken && (
+                        <div className="flex items-start gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-600 dark:text-emerald-400">
+                            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>
+                                Protected endpoint — preview is fetched with a valid bearer token
+                                from your project&apos;s login endpoint.
+                            </span>
+                        </div>
+                    )}
+                    {isLoginEndpoint && (
+                        <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-600 dark:text-amber-400">
+                            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>
+                                Login endpoint — response includes a signed JWT{" "}
+                                <code className="rounded bg-amber-100 px-1 py-0.5 font-mono text-[11px] dark:bg-amber-900/40">
+                                    token
+                                </code>{" "}
+                                field alongside the mock data.
+                            </span>
+                        </div>
+                    )}
+
                     {/* Field summary table */}
                     <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
                         <div className="grid grid-cols-2 bg-zinc-100 dark:bg-zinc-900 px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -149,7 +195,7 @@ export function SchemaPreview({ endpoint, fetchUrl }: SchemaPreviewProps) {
                                 variant="outline"
                                 size="sm"
                                 onClick={loadSample}
-                                disabled={isLoading}
+                                disabled={isLoading || (requiresAuth && !bearerToken)}
                                 className="h-8 gap-2 font-mono text-xs"
                             >
                                 <RotateCw

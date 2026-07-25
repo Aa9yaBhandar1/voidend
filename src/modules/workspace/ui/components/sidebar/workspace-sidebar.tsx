@@ -6,6 +6,7 @@ import { Button } from "~/components/ui/button";
 import { ConfirmDialog } from "~/components/confirm-dialog";
 import { TreeProvider, TreeView } from "~/components/kibo-ui/tree";
 import { CreateFolderDialog, CreateEndpointDialog, CreateProjectDialog } from "./dialogs";
+import { ProjectSettingsDialog } from "./project-settings-dialog";
 import { ProjectTreeNode } from "./sidebar-tree";
 import {
     useCreateProject,
@@ -193,6 +194,13 @@ export const Sidebar = forwardRef<
                         folderId: modal.folderId,
                     });
                     setModal(null);
+                }}
+            />
+            <ProjectSettingsDialog
+                projectId={modal?.kind === "projectSettings" ? modal.projectId : null}
+                open={modal?.kind === "projectSettings"}
+                onOpenChange={(open) => {
+                    if (!open) setModal(null);
                 }}
             />
         </>

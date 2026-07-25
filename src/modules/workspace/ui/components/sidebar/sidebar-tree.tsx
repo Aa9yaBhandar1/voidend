@@ -1,5 +1,6 @@
 "use client";
 
+import { KeyRound, Lock } from "lucide-react";
 import { cn } from "~/lib/utils";
 import {
     TreeNode,
@@ -81,6 +82,22 @@ export function EndpointTreeNode({
                     <TreeLabel className={isSelected ? "font-medium" : ""}>
                         {endpoint.name}
                     </TreeLabel>
+                )}
+                {endpoint.authConfig?.isLoginEndpoint && (
+                    <span
+                        className="inline-flex items-center justify-center rounded border border-amber-500/30 bg-amber-500/15 p-0.5 text-amber-600 dark:text-amber-400 shrink-0 mr-1.5"
+                        title="Login Endpoint (Returns JWT Token)"
+                    >
+                        <KeyRound className="size-3" />
+                    </span>
+                )}
+                {endpoint.authConfig?.requiresAuth && (
+                    <span
+                        className="inline-flex items-center justify-center rounded border border-emerald-500/30 bg-emerald-500/15 p-0.5 text-emerald-600 dark:text-emerald-400 shrink-0 mr-1.5"
+                        title="Requires Authentication (Bearer Token)"
+                    >
+                        <Lock className="size-3" />
+                    </span>
                 )}
                 <MethodBadge method={endpoint.method} />
                 <TreeNodeMenu
@@ -318,6 +335,9 @@ export function ProjectTreeNode({
                 <TreeNodeMenu
                     onNewFolder={() => onOpenModal({ kind: "folder", projectId: project.id })}
                     onNewFile={() => onOpenModal({ kind: "endpoint", projectId: project.id })}
+                    onSettings={() =>
+                        onOpenModal({ kind: "projectSettings", projectId: project.id })
+                    }
                     onRename={() => setRenamingId(project.id)}
                     onDelete={() => onDeleteProject(project.id)}
                 />
