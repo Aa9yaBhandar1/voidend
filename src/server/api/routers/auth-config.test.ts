@@ -16,6 +16,7 @@ function createCtx() {
       title TEXT NOT NULL,
       description TEXT,
       basePath TEXT NOT NULL DEFAULT '/',
+      secret TEXT NOT NULL,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch()),
       updatedAt INTEGER NOT NULL DEFAULT (unixepoch())
     );
@@ -52,7 +53,6 @@ function createCtx() {
       endpointId TEXT NOT NULL REFERENCES voidend_endpoints(id) ON DELETE CASCADE,
       isLoginEndpoint INTEGER NOT NULL DEFAULT 0,
       requiresAuth INTEGER NOT NULL DEFAULT 0,
-      secret TEXT NOT NULL,
       tokenExpirySeconds INTEGER NOT NULL DEFAULT 3600,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch()),
       updatedAt INTEGER NOT NULL DEFAULT (unixepoch())
@@ -64,7 +64,7 @@ function createCtx() {
 async function insertProject(db: ReturnType<typeof createCtx>["db"], overrides = {}) {
     const [project] = await db
         .insert(schema.projects_table)
-        .values({ title: "P", ...overrides })
+        .values({ title: "P", secret: "test-secret", ...overrides })
         .returning();
     return project!;
 }
@@ -95,22 +95,21 @@ describe("authConfigRouter", () => {
     });
 
     describe("upsert", () => {
-        it("creates a new auth config with a generated secret", async () => {
+        it("creates a new auth config", async () => {
             const config = await caller.upsert({ endpointId, requiresAuth: true });
             expect(config?.endpointId).toBe(endpointId);
             expect(config?.requiresAuth).toBe(true);
             expect(config?.isLoginEndpoint).toBe(false);
-            expect(config?.secret).toBeTruthy();
         });
 
-        it("updates an existing config without regenerating the secret", async () => {
+        it("updates an existing config", async () => {
             const first = await caller.upsert({ endpointId, isLoginEndpoint: true });
             const second = await caller.upsert({
                 endpointId,
                 isLoginEndpoint: true,
                 tokenExpirySeconds: 7200,
             });
-            expect(second?.secret).toBe(first?.secret);
+            expect(first?.isLoginEndpoint).toBe(true);
             expect(second?.tokenExpirySeconds).toBe(7200);
         });
 

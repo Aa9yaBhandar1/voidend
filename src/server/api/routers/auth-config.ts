@@ -3,7 +3,6 @@ import z from "zod";
 import { auth_configs_table } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import crypto from "node:crypto";
 
 export const authConfigRouter = createTRPCRouter({
     upsert: publicProcedure
@@ -47,10 +46,7 @@ export const authConfigRouter = createTRPCRouter({
                 return updated;
             }
 
-            const [created] = await ctx.db
-                .insert(auth_configs_table)
-                .values({ ...input, secret: crypto.randomBytes(32).toString("hex") })
-                .returning();
+            const [created] = await ctx.db.insert(auth_configs_table).values(input).returning();
             return created;
         }),
 

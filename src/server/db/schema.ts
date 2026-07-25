@@ -1,6 +1,7 @@
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { index, sqliteTableCreator } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+import crypto from "node:crypto";
 
 export const createTable = sqliteTableCreator((name) => `voidend_${name}`);
 
@@ -14,6 +15,10 @@ export const projects_table = createTable(
         title: d.text().notNull(),
         description: d.text(),
         basePath: d.text().notNull().default("/"),
+        secret: d
+            .text()
+            .notNull()
+            .$defaultFn(() => crypto.randomBytes(32).toString("hex")),
         createdAt: d
             .integer({ mode: "timestamp" })
             .notNull()
@@ -110,7 +115,6 @@ export const auth_configs_table = createTable(
             .references(() => endpoints_table.id, { onDelete: "cascade" }),
         isLoginEndpoint: d.integer({ mode: "boolean" }).notNull().default(false),
         requiresAuth: d.integer({ mode: "boolean" }).notNull().default(false),
-        secret: d.text().notNull(),
         tokenExpirySeconds: d.integer().notNull().default(3600),
         createdAt: d
             .integer({ mode: "timestamp" })

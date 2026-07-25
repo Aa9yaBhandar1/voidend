@@ -22,6 +22,7 @@ function createCtx() {
       title TEXT NOT NULL,
       description TEXT,
       basePath TEXT NOT NULL DEFAULT '/',
+      secret TEXT NOT NULL,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch()),
       updatedAt INTEGER NOT NULL DEFAULT (unixepoch())
     );
@@ -44,6 +45,12 @@ describe("projectRouter", () => {
             const project = await caller.create({ title: "Test" });
             expect(project?.title).toBe("Test");
             expect(project?.basePath).toBe("/");
+            expect(project?.secret).toBeTruthy();
+        });
+
+        it("creates a project with a custom secret", async () => {
+            const project = await caller.create({ title: "Custom", secret: "custom-secret-key" });
+            expect(project?.secret).toBe("custom-secret-key");
         });
 
         it("rejects empty title", async () => {
@@ -71,6 +78,7 @@ describe("projectRouter", () => {
             const created = await caller.create({ title: "Findme" });
             const found = await caller.getById({ id: created!.id });
             expect(found?.id).toBe(created!.id);
+            expect(found?.secret).toBe(created!.secret);
         });
 
         it("returns null when not found", async () => {
@@ -86,9 +94,14 @@ describe("projectRouter", () => {
     describe("update", () => {
         it("updates provided fields only", async () => {
             const created = await caller.create({ title: "Old", description: "d" });
-            const updated = await caller.update({ id: created!.id, title: "New" });
+            const updated = await caller.update({
+                id: created!.id,
+                title: "New",
+                secret: "updated-secret",
+            });
             expect(updated?.title).toBe("New");
             expect(updated?.description).toBe("d");
+            expect(updated?.secret).toBe("updated-secret");
         });
 
         it("returns undefined when id not found", async () => {

@@ -25,6 +25,7 @@ function createCtx() {
       title TEXT NOT NULL,
       description TEXT,
       basePath TEXT NOT NULL DEFAULT '/',
+      secret TEXT NOT NULL,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch()),
       updatedAt INTEGER NOT NULL DEFAULT (unixepoch())
     );
