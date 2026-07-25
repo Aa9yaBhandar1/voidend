@@ -15,4 +15,4 @@ run_step() {
 
 run_step "check" pnpm check
 run_step "typecheck" pnpm typecheck
-run_step "test" pnpm test
+run_step "test" pnpm test:unit
