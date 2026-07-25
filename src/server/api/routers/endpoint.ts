@@ -4,6 +4,7 @@ import { endpoints_table } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { generateAndSaveData, invalidateEndpointData } from "~/lib/endpoint-data-store";
 import { TRPCError } from "@trpc/server";
+import { stripBasePath } from "~/lib/mock-path";
 
 const HttpMethod = z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
@@ -187,11 +188,7 @@ export const endpointRouter = createTRPCRouter({
             });
 
             if (!project) return null;
-
-            const basePath = project.basePath.replace(/\/$/, "");
-            const strippedPath = input.path.startsWith(basePath)
-                ? input.path.slice(basePath.length) || "/"
-                : input.path;
+            const strippedPath = stripBasePath(input.path, project.basePath);
 
             const endpoint = await ctx.db.query.endpoints_table.findFirst({
                 where: (e, { eq, and }) =>

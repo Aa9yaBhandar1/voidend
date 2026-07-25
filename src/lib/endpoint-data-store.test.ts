@@ -9,64 +9,64 @@ import {
     invalidateEndpointData,
     deleteProjectData,
 } from "./endpoint-data-store";
+import { isolatePlatformEnv } from "./test-helpers/isolate-platform";
 
 describe("getDataDir", () => {
-    const originalPlatform = process.platform;
-    const originalEnv = { ...process.env };
+    const platformEnv = isolatePlatformEnv();
 
     afterEach(() => {
-        Object.defineProperty(process, "platform", { value: originalPlatform });
-        process.env = { ...originalEnv };
+        platformEnv.restore();
     });
 
     it("uses XDG_DATA_HOME on linux when set", () => {
-        Object.defineProperty(process, "platform", { value: "linux" });
+        platformEnv.setPlatform("linux");
         process.env.XDG_DATA_HOME = "/custom/xdg";
         expect(getDataDir()).toBe(path.join("/custom/xdg", "voidend"));
     });
 
     it("falls back to ~/.local/share on linux when XDG_DATA_HOME is unset", () => {
-        Object.defineProperty(process, "platform", { value: "linux" });
+        platformEnv.setPlatform("linux");
         delete process.env.XDG_DATA_HOME;
         expect(getDataDir()).toBe(path.join(os.homedir(), ".local/share", "voidend"));
     });
 
     it("uses Library/Application Support on darwin", () => {
-        Object.defineProperty(process, "platform", { value: "darwin" });
+        platformEnv.setPlatform("darwin");
         expect(getDataDir()).toBe(path.join(os.homedir(), "Library/Application Support/voidend"));
     });
 
     it("uses APPDATA on win32 when set", () => {
-        Object.defineProperty(process, "platform", { value: "win32" });
+        platformEnv.setPlatform("win32");
         process.env.APPDATA = "C:\\Users\\test\\AppData\\Roaming";
         expect(getDataDir()).toBe(path.join("C:\\Users\\test\\AppData\\Roaming", "voidend"));
     });
 
     it("falls back to homedir on win32 when APPDATA is unset", () => {
-        Object.defineProperty(process, "platform", { value: "win32" });
+        platformEnv.setPlatform("win32");
         delete process.env.APPDATA;
         expect(getDataDir()).toBe(path.join(os.homedir(), "voidend"));
     });
 
     it("falls back to ~/.voidend on unknown platforms", () => {
-        Object.defineProperty(process, "platform", { value: "freebsd" });
+        platformEnv.setPlatform("freebsd");
         expect(getDataDir()).toBe(path.join(os.homedir(), ".voidend"));
     });
 });
 
 describe("endpoint-data-store (file operations)", () => {
     let tempDir: string;
+    const platformEnv = isolatePlatformEnv();
 
     beforeEach(() => {
-        // Isolate real fs operations into a temp dir via XDG_DATA_HOME (linux path used in CI)
         tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "voidend-test-"));
-        Object.defineProperty(process, "platform", { value: "linux" });
+        platformEnv.setPlatform("linux");
         process.env.XDG_DATA_HOME = tempDir;
     });
 
     afterEach(() => {
         fs.rmSync(tempDir, { recursive: true, force: true });
         vi.restoreAllMocks();
+        platformEnv.restore();
     });
 
     describe("getData", () => {

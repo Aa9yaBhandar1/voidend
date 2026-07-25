@@ -49,8 +49,6 @@ describe("project lifecycle (integration, real fs + real db)", () => {
 
     it("regenerates the data file with new content when responseSchema is updated", async () => {
         const project = await projectCaller.create({ title: "Test Project" });
-        // responseCount defaults to 1, so resolveResponseData returns a single
-        // object here, not a 1-element array.
         const endpoint = await endpointCaller.create({
             name: "List users",
             projectId: project!.id,

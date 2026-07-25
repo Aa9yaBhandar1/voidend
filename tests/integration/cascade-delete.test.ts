@@ -125,7 +125,6 @@ describe("folder cascade delete (integration, real db + real fs)", () => {
 
         expect(fs.existsSync(parentFile)).toBe(false);
         expect(fs.existsSync(childFile)).toBe(false);
-        // endpoint outside the deleted folder tree keeps its data file
         expect(fs.existsSync(outsideFile)).toBe(true);
     });
 

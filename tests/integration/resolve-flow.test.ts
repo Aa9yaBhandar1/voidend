@@ -45,32 +45,10 @@ describe("endpoint.resolve basePath stripping (integration)", () => {
         expect(expected).toBe("/");
     });
 
-    /**
-     * Known divergence: endpoint.resolve strips basePath inline via a naive
-     * `startsWith` check instead of importing `stripBasePath`, so it does not
-     * enforce a segment boundary after the prefix. `stripBasePath` was already
-     * hardened against this class of bug for mock-path.ts (see stripBasePath
-     * tests / the earlier `getMockOrigin` cleanup). This test documents the
-     * current (incorrect) behavior of resolve and will start failing — which
-     * is the point — once resolve is switched to use stripBasePath directly.
-     */
-    it("[KNOWN BUG] resolve's inline stripping does not respect segment boundaries", async () => {
+    it("resolves correctly even when the request path shares a prefix but not a path boundary with basePath", async () => {
         const project = await projectCaller.create({ title: "Scoped", basePath: "/api" });
         await endpointCaller.create({ name: "X", projectId: project!.id, path: "/ary/foo" });
 
-        // What resolve currently does (buggy): naive startsWith + slice.
-        const naiveStripped = "/apiary/foo".startsWith(project!.basePath)
-            ? "/apiary/foo".slice(project!.basePath.length) || "/"
-            : "/apiary/foo";
-        expect(naiveStripped).toBe("ary/foo"); // no leading slash, wrong segment
-
-        // What the hardened utility does: refuses to strip a non-boundary prefix.
-        const correctlyStripped = stripBasePath("/apiary/foo", project!.basePath);
-        expect(correctlyStripped).toBe("/apiary/foo"); // unchanged, as it should be
-
-        // resolve() as currently implemented will NOT find this endpoint via
-        // "/apiary/foo" because its inline strip produces "ary/foo", which
-        // matches neither the stored path "/ary/foo" nor anything sane.
         const resolved = await endpointCaller.resolve({
             projectId: project!.id,
             method: "GET",
@@ -86,22 +64,11 @@ describe("endpoint.resolve basePath stripping (integration)", () => {
         const resolved = await endpointCaller.resolve({
             projectId: project!.id,
             method: "GET",
-            path: "/orders", // no relation to the registered endpoint at all
+            path: "/orders",
         });
         expect(resolved).toBeNull();
     });
 
-    /**
-     * Documents a second consequence of the same inline-stripping bug: because
-     * the fallback branch returns the path unchanged when it doesn't start
-     * with basePath, a request that omits the basePath prefix entirely can
-     * still resolve if it happens to equal the endpoint's stored (post-strip)
-     * path. A correct implementation using stripBasePath would have the same
-     * behavior here too (stripBasePath also returns the input unchanged if it
-     * doesn't match), so this isn't unique to the bug — but it's worth having
-     * explicit coverage since it's a common source of confusion when basePath
-     * is supposed to be mandatory.
-     */
     it("resolves even without the basePath prefix, since both paths happen to coincide", async () => {
         const project = await projectCaller.create({ title: "Scoped", basePath: "/api/v1" });
         await endpointCaller.create({ name: "Users", projectId: project!.id, path: "/users" });
@@ -109,7 +76,7 @@ describe("endpoint.resolve basePath stripping (integration)", () => {
         const resolved = await endpointCaller.resolve({
             projectId: project!.id,
             method: "GET",
-            path: "/users", // missing the /api/v1 prefix, but matches stored path directly
+            path: "/users",
         });
         expect(resolved?.path).toBe("/users");
     });

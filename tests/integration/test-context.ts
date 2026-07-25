@@ -4,6 +4,7 @@ import path from "path";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import * as schema from "~/server/db/schema";
+import { isolatePlatformEnv } from "~/lib/test-helpers/isolate-platform";
 
 export function createRealCtx() {
     const sqlite = new Database(":memory:");
@@ -60,17 +61,17 @@ export async function insertProject(
     return project!;
 }
 
-/** Sets XDG_DATA_HOME to an isolated tmp dir so endpoint-data-store hits real fs, not the dev machine's real data. */
 export function setupIsolatedDataDir() {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "voidend-test-"));
-    const original = process.env.XDG_DATA_HOME;
+    const platformEnv = isolatePlatformEnv();
+    platformEnv.setPlatform("linux");
     process.env.XDG_DATA_HOME = dir;
+
     return {
         dir,
         cleanup: () => {
             fs.rmSync(dir, { recursive: true, force: true });
-            if (original === undefined) delete process.env.XDG_DATA_HOME;
-            else process.env.XDG_DATA_HOME = original;
+            platformEnv.restore();
         },
     };
 }
