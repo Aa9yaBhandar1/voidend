@@ -198,30 +198,70 @@ export interface SchemaField {
 }
 
 export function normalizeStoredFieldType(value: unknown): string {
-    if (typeof value !== "string") return "$faker.string.uuid";
-    if (value.startsWith("$faker.")) return value;
+    if (typeof value === "string") {
+        if (value.startsWith("$faker.")) return value;
 
-    const legacyTypeMap: Record<string, string> = {
-        uuid: "$faker.string.uuid",
-        fullName: "$faker.person.fullName",
-        username: "$faker.internet.username",
-        paragraph: "$faker.lorem.paragraph",
-        date: "$faker.date.anytime",
-        email: "$faker.internet.email",
-        phoneNumber: "$faker.phone.number",
-        city: "$faker.location.city",
-        companyName: "$faker.company.name",
-        productName: "$faker.commerce.productName",
-        price: "$faker.commerce.price",
-        number: "$faker.number.int",
-        boolean: "$faker.datatype.boolean",
-    };
+        const legacyTypeMap: Record<string, string> = {
+            uuid: "$faker.string.uuid",
+            fullName: "$faker.person.fullName",
+            username: "$faker.internet.username",
+            paragraph: "$faker.lorem.paragraph",
+            date: "$faker.date.anytime",
+            email: "$faker.internet.email",
+            phoneNumber: "$faker.phone.number",
+            city: "$faker.location.city",
+            companyName: "$faker.company.name",
+            productName: "$faker.commerce.productName",
+            price: "$faker.commerce.price",
+            number: "$faker.number.int",
+            boolean: "$faker.datatype.boolean",
+        };
 
-    return legacyTypeMap[value] ?? "$faker.string.uuid";
+        return legacyTypeMap[value] ?? value;
+    }
+    return JSON.stringify(value);
 }
 
-export function fieldsFromSchema(schema: unknown): SchemaField[] {
-    if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+export function fieldsFromSchema(schema: unknown, prefix = ""): SchemaField[] {
+    if (!schema || typeof schema !== "object") {
+        return [];
+    }
+
+    if (Array.isArray(schema)) {
+        if (schema.length > 0) {
+            return fieldsFromSchema(schema[0], prefix);
+        }
+        return [];
+    }
+
+    // Handle {$array: schema} wrapper format
+    if ("$array" in schema && schema.$array) {
+        return fieldsFromSchema((schema as { $array: unknown }).$array, prefix);
+    }
+
+    const fields: SchemaField[] = [];
+
+    for (const [key, val] of Object.entries(schema)) {
+        const fullPath = prefix ? `${prefix}.${key}` : key;
+        if (val && typeof val === "object" && !Array.isArray(val) && !("$array" in val)) {
+            // Nested object
+            fields.push(...fieldsFromSchema(val, fullPath));
+        } else if (val && typeof val === "object" && "$array" in val) {
+            // Nested array object
+            fields.push(...fieldsFromSchema((val as { $array: unknown }).$array, fullPath));
+        } else if (Array.isArray(val) && val.length > 0) {
+            // Primitive array
+            fields.push(...fieldsFromSchema(val[0], fullPath));
+        } else {
+            fields.push({
+                id: crypto.randomUUID(),
+                fieldName: fullPath,
+                dataType: normalizeStoredFieldType(val),
+            });
+        }
+    }
+
+    if (fields.length === 0 && !prefix) {
         return [
             {
                 id: crypto.randomUUID(),
@@ -231,21 +271,7 @@ export function fieldsFromSchema(schema: unknown): SchemaField[] {
         ];
     }
 
-    const fields = Object.entries(schema).map(([fieldName, dataType]) => ({
-        id: crypto.randomUUID(),
-        fieldName,
-        dataType: normalizeStoredFieldType(dataType),
-    }));
-
-    return fields.length > 0
-        ? fields
-        : [
-              {
-                  id: crypto.randomUUID(),
-                  fieldName: "",
-                  dataType: "$faker.string.uuid",
-              },
-          ];
+    return fields;
 }
 
 export function buildSchema(schemaFields: SchemaField[]): Record<string, string> {

@@ -24,18 +24,19 @@ import {
     SelectValue,
 } from "~/components/ui/select";
 import { useUpdateEndpoint } from "~/hooks/use-endpoints";
-import { resolveSchema } from "~/lib/schema-resolver";
+import { resolveResponseData } from "~/lib/schema-resolver";
 import type { HttpMethod } from "../sidebar/types";
 import {
     FAKER_OPTIONS,
     type SchemaField,
     fieldsFromSchema,
     buildSchema,
-} from "./schemaBuilder/schema-utils";
+} from "~/lib/faker-options";
 
 interface SchemaBuilderProps {
     endpoint: {
         id: string;
+        projectId?: string;
         name: string;
         method: HttpMethod;
         path: string;
@@ -45,6 +46,7 @@ interface SchemaBuilderProps {
         responseSchema: unknown;
         responseCount: number;
     };
+    projectId?: string;
     initialTab?: "schema" | "auth";
     onSuccess?: () => void;
 }
@@ -71,7 +73,12 @@ function FieldLabel({ children, tooltip }: { children: React.ReactNode; tooltip:
     );
 }
 
-export function SchemaBuilder({ endpoint, initialTab = "schema", onSuccess }: SchemaBuilderProps) {
+export function SchemaBuilder({
+    endpoint,
+    projectId,
+    initialTab = "schema",
+    onSuccess,
+}: SchemaBuilderProps) {
     const [activeTab, setActiveTab] = useState<"schema" | "auth">(initialTab);
     const [resourceName, setResourceName] = useState(endpoint.name);
     const [nameError, setNameError] = useState<string | null>(null);
@@ -81,6 +88,9 @@ export function SchemaBuilder({ endpoint, initialTab = "schema", onSuccess }: Sc
     const [fields, setFields] = useState<SchemaField[]>([
         { id: crypto.randomUUID(), fieldName: "", dataType: "$faker.string.uuid" },
     ]);
+    const [editorMode, setEditorMode] = useState<"flat" | "raw">("flat");
+    const [rawSchemaText, setRawSchemaText] = useState<string>("");
+    const [jsonError, setJsonError] = useState<string | null>(null);
 
     const updateEndpoint = useUpdateEndpoint();
 
@@ -95,6 +105,12 @@ export function SchemaBuilder({ endpoint, initialTab = "schema", onSuccess }: Sc
         setFailureRate(endpoint.failureRate);
         setResponseCount(endpoint.responseCount);
         setFields(fieldsFromSchema(endpoint.responseSchema));
+        setRawSchemaText(
+            endpoint.responseSchema
+                ? JSON.stringify(endpoint.responseSchema, null, 2)
+                : JSON.stringify({ id: "$faker.string.uuid" }, null, 2),
+        );
+        setJsonError(null);
     }, [endpoint]);
 
     const addField = () => {
@@ -120,12 +136,22 @@ export function SchemaBuilder({ endpoint, initialTab = "schema", onSuccess }: Sc
         setFields(nextFields);
     };
 
+    const seed = projectId || endpoint.projectId || endpoint.id;
+
     const previewData = useMemo(() => {
-        const formattedSchema = buildSchema(fields);
-        return Array.from({ length: Math.max(responseCount, 1) }, () =>
-            resolveSchema(formattedSchema),
-        );
-    }, [fields, responseCount]);
+        let formattedSchema: unknown;
+        if (editorMode === "raw") {
+            try {
+                formattedSchema = JSON.parse(rawSchemaText);
+            } catch {
+                formattedSchema = buildSchema(fields);
+            }
+        } else {
+            formattedSchema = buildSchema(fields);
+        }
+
+        return resolveResponseData(formattedSchema, responseCount, seed);
+    }, [fields, editorMode, rawSchemaText, responseCount, seed]);
 
     const hasExistingSchema = useMemo(() => {
         if (
@@ -146,13 +172,24 @@ export function SchemaBuilder({ endpoint, initialTab = "schema", onSuccess }: Sc
         }
         setNameError(null);
 
-        const formattedSchema = buildSchema(fields);
+        let formattedSchema: unknown;
+        if (editorMode === "raw") {
+            try {
+                formattedSchema = JSON.parse(rawSchemaText);
+            } catch (err: any) {
+                setJsonError(err.message || "Invalid JSON syntax");
+                toast.error("Please fix JSON syntax errors before saving.");
+                return;
+            }
+        } else {
+            formattedSchema = buildSchema(fields);
+        }
 
         updateEndpoint.mutate(
             {
                 id: endpoint.id,
                 name: resourceName,
-                responseSchema: formattedSchema,
+                responseSchema: formattedSchema as Record<string, unknown>,
                 delayMs: delayMs,
                 failureRate: failureRate,
                 responseCount: responseCount,
@@ -293,122 +330,436 @@ export function SchemaBuilder({ endpoint, initialTab = "schema", onSuccess }: Sc
 
                             <Separator />
 
-                            {/* Schema fields */}
+                            {/* Schema fields editor with Flat vs Raw JSON tabs */}
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <FieldLabel tooltip="Define the fields used to generate mock data.">
                                         Fields schema
                                     </FieldLabel>
-                                    <Badge
-                                        variant="secondary"
-                                        className="font-mono text-xs font-medium"
-                                    >
-                                        {fields.length} {fields.length === 1 ? "field" : "fields"}
-                                    </Badge>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex rounded-md bg-muted p-0.5 text-xs">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (editorMode === "raw") {
+                                                        try {
+                                                            const parsed =
+                                                                JSON.parse(rawSchemaText);
+                                                            setFields(fieldsFromSchema(parsed));
+                                                            setJsonError(null);
+                                                        } catch {
+                                                            // Keep current fields if invalid
+                                                        }
+                                                    }
+                                                    setEditorMode("flat");
+                                                }}
+                                                className={`px-2.5 py-1 rounded-sm font-medium transition-colors ${
+                                                    editorMode === "flat"
+                                                        ? "bg-background text-foreground shadow-xs font-semibold"
+                                                        : "text-muted-foreground hover:text-foreground"
+                                                }`}
+                                            >
+                                                Flat Columns
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (editorMode === "flat") {
+                                                        const current = buildSchema(fields);
+                                                        setRawSchemaText(
+                                                            JSON.stringify(current, null, 2),
+                                                        );
+                                                    }
+                                                    setEditorMode("raw");
+                                                }}
+                                                className={`px-2.5 py-1 rounded-sm font-medium transition-colors ${
+                                                    editorMode === "raw"
+                                                        ? "bg-background text-foreground shadow-xs font-semibold"
+                                                        : "text-muted-foreground hover:text-foreground"
+                                                }`}
+                                            >
+                                                Nested Raw JSON
+                                            </button>
+                                        </div>
+                                        {editorMode === "flat" && (
+                                            <Badge
+                                                variant="secondary"
+                                                className="font-mono text-xs font-medium"
+                                            >
+                                                {fields.length}{" "}
+                                                {fields.length === 1 ? "field" : "fields"}
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    {fields.length > 0 && (
-                                        <div className="hidden grid-cols-[1fr_1fr_2.5rem] gap-3 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:grid">
-                                            <div>Field name</div>
-                                            <div>Data type</div>
-                                            <div />
-                                        </div>
-                                    )}
-
+                                {editorMode === "flat" ? (
                                     <div className="space-y-2">
-                                        {fields.map((field) => (
-                                            <div
-                                                key={field.id}
-                                                className="grid grid-cols-[1fr_1fr_2.5rem] items-center gap-2 rounded-lg border border-transparent p-1 transition-colors hover:border-border sm:gap-3"
-                                            >
-                                                <Input
-                                                    type="text"
-                                                    placeholder="e.g. user_id, created_at"
-                                                    value={field.fieldName}
-                                                    onChange={(e) =>
-                                                        updateField(
-                                                            field.id,
-                                                            "fieldName",
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    className="h-10 border-0 bg-muted font-mono text-sm shadow-none focus-visible:ring-2 focus-visible:ring-ring"
-                                                />
+                                        {fields.length > 0 && (
+                                            <div className="hidden grid-cols-[1fr_1fr_2.5rem] gap-3 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sm:grid">
+                                                <div>Field name</div>
+                                                <div>Data type</div>
+                                                <div />
+                                            </div>
+                                        )}
 
-                                                <Select
-                                                    value={field.dataType}
-                                                    onValueChange={(value) => {
-                                                        if (value)
+                                        <div className="space-y-2">
+                                            {fields.map((field) => (
+                                                <div
+                                                    key={field.id}
+                                                    className="grid grid-cols-[1fr_1fr_2.5rem] items-center gap-2 rounded-lg border border-transparent p-1 transition-colors hover:border-border sm:gap-3"
+                                                >
+                                                    <Input
+                                                        type="text"
+                                                        placeholder="e.g. user_id, created_at"
+                                                        value={field.fieldName}
+                                                        onChange={(e) =>
                                                             updateField(
                                                                 field.id,
-                                                                "dataType",
-                                                                value,
-                                                            );
-                                                    }}
-                                                >
-                                                    <SelectTrigger className="h-10 w-full border-0 bg-muted font-mono text-sm shadow-none focus-visible:ring-2 focus-visible:ring-ring">
-                                                        <SelectValue placeholder="Select type" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {FAKER_OPTIONS.map((group) => (
-                                                            <SelectGroup key={group.label}>
-                                                                <SelectLabel>
-                                                                    {group.label}
-                                                                </SelectLabel>
-                                                                {group.options.map((option) => (
-                                                                    <SelectItem
-                                                                        key={option.value}
-                                                                        value={option.value}
-                                                                    >
-                                                                        {option.label}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectGroup>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-
-                                                <Tooltip>
-                                                    <TooltipTrigger
-                                                        render={
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                disabled={fields.length === 1}
-                                                                onClick={() =>
-                                                                    removeField(field.id)
-                                                                }
-                                                                className="h-10 w-10 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
+                                                                "fieldName",
+                                                                e.target.value,
+                                                            )
                                                         }
+                                                        className="h-10 border-0 bg-muted font-mono text-sm shadow-none focus-visible:ring-2 focus-visible:ring-ring"
                                                     />
-                                                    <TooltipContent side="left" className="text-xs">
-                                                        {fields.length === 1
-                                                            ? "At least one field is required"
-                                                            : "Remove field"}
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </div>
-                                        ))}
-                                    </div>
 
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        onClick={addField}
-                                        size="sm"
-                                        className="mt-1 h-9 gap-1.5 border-dashed border-primary text-muted-foreground hover:text-primary hover:color-primary"
-                                    >
-                                        <Plus className="h-3.5 w-3.5" />
-                                        <FieldLabel tooltip="Add a new field to the schema.">
-                                            Add field
-                                        </FieldLabel>
-                                    </Button>
-                                </div>
+                                                    <Select
+                                                        value={field.dataType}
+                                                        onValueChange={(value) => {
+                                                            if (value)
+                                                                updateField(
+                                                                    field.id,
+                                                                    "dataType",
+                                                                    value,
+                                                                );
+                                                        }}
+                                                    >
+                                                        <SelectTrigger className="h-10 w-full border-0 bg-muted font-mono text-sm shadow-none focus-visible:ring-2 focus-visible:ring-ring">
+                                                            <SelectValue placeholder="Select type" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {FAKER_OPTIONS.map((group) => (
+                                                                <SelectGroup key={group.label}>
+                                                                    <SelectLabel>
+                                                                        {group.label}
+                                                                    </SelectLabel>
+                                                                    {group.options.map((option) => (
+                                                                        <SelectItem
+                                                                            key={option.value}
+                                                                            value={option.value}
+                                                                        >
+                                                                            {option.label}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectGroup>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+
+                                                    <Tooltip>
+                                                        <TooltipTrigger
+                                                            render={
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    disabled={fields.length === 1}
+                                                                    onClick={() =>
+                                                                        removeField(field.id)
+                                                                    }
+                                                                    className="h-10 w-10 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            }
+                                                        />
+                                                        <TooltipContent
+                                                            side="left"
+                                                            className="text-xs"
+                                                        >
+                                                            {fields.length === 1
+                                                                ? "At least one field is required"
+                                                                : "Remove field"}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="flex items-center justify-between mt-1">
+                                            <Button
+                                                type="button"
+                                                variant="secondary"
+                                                onClick={addField}
+                                                size="sm"
+                                                className="h-9 gap-1.5 border-dashed border-primary text-muted-foreground hover:text-primary hover:color-primary"
+                                            >
+                                                <Plus className="h-3.5 w-3.5" />
+                                                <FieldLabel tooltip="Add a new field to the schema.">
+                                                    Add field
+                                                </FieldLabel>
+                                            </Button>
+
+                                            <Button
+                                                type="button"
+                                                onClick={handleSubmit}
+                                                disabled={updateEndpoint.isPending}
+                                                size="sm"
+                                                className="h-9 gap-2 font-semibold text-primary-foreground"
+                                            >
+                                                {updateEndpoint.isPending
+                                                    ? "Saving..."
+                                                    : hasExistingSchema
+                                                      ? "Update schema"
+                                                      : "Generate schema"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[11px] font-mono text-muted-foreground">
+                                                JSON Editor (Tab / Enter auto-indent, &quot;
+                                                auto-pairs)
+                                            </span>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    try {
+                                                        const parsed = JSON.parse(rawSchemaText);
+                                                        const formatted = JSON.stringify(
+                                                            parsed,
+                                                            null,
+                                                            2,
+                                                        );
+                                                        setRawSchemaText(formatted);
+                                                        setJsonError(null);
+                                                        toast.success("JSON formatted");
+                                                    } catch {
+                                                        toast.error(
+                                                            "Cannot format: invalid JSON syntax",
+                                                        );
+                                                    }
+                                                }}
+                                                className="h-7 text-xs font-mono gap-1"
+                                            >
+                                                Format JSON
+                                            </Button>
+                                        </div>
+                                        <textarea
+                                            value={rawSchemaText}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setRawSchemaText(val);
+                                                try {
+                                                    const parsed = JSON.parse(val);
+                                                    setFields(fieldsFromSchema(parsed));
+                                                    setJsonError(null);
+                                                } catch (err: any) {
+                                                    setJsonError(
+                                                        err.message || "Invalid JSON syntax",
+                                                    );
+                                                }
+                                            }}
+                                            onKeyDown={(e) => {
+                                                const target = e.currentTarget;
+                                                const { selectionStart, selectionEnd, value } =
+                                                    target;
+
+                                                // 1. Convert single quote ' to double quote "
+                                                if (e.key === "'") {
+                                                    e.preventDefault();
+                                                    const before = value.substring(
+                                                        0,
+                                                        selectionStart,
+                                                    );
+                                                    const after = value.substring(selectionEnd);
+                                                    const nextVal = `${before}"${after}`;
+                                                    setRawSchemaText(nextVal);
+                                                    setTimeout(() => {
+                                                        target.selectionStart =
+                                                            target.selectionEnd =
+                                                                selectionStart + 1;
+                                                    }, 0);
+                                                    return;
+                                                }
+
+                                                // 2. Auto-pair double quotes " -> ""
+                                                if (e.key === '"') {
+                                                    if (
+                                                        selectionStart === selectionEnd &&
+                                                        value[selectionStart] === '"'
+                                                    ) {
+                                                        e.preventDefault();
+                                                        target.selectionStart =
+                                                            target.selectionEnd =
+                                                                selectionStart + 1;
+                                                        return;
+                                                    }
+                                                    e.preventDefault();
+                                                    const before = value.substring(
+                                                        0,
+                                                        selectionStart,
+                                                    );
+                                                    const selected = value.substring(
+                                                        selectionStart,
+                                                        selectionEnd,
+                                                    );
+                                                    const after = value.substring(selectionEnd);
+                                                    const nextVal = `${before}"${selected}"${after}`;
+                                                    setRawSchemaText(nextVal);
+                                                    setTimeout(() => {
+                                                        target.selectionStart = selectionStart + 1;
+                                                        target.selectionEnd =
+                                                            selectionStart + 1 + selected.length;
+                                                    }, 0);
+                                                    return;
+                                                }
+
+                                                // 3. Auto-pair braces { -> {} and brackets [ -> []
+                                                if (e.key === "{" || e.key === "[") {
+                                                    const closing = e.key === "{" ? "}" : "]";
+                                                    e.preventDefault();
+                                                    const before = value.substring(
+                                                        0,
+                                                        selectionStart,
+                                                    );
+                                                    const selected = value.substring(
+                                                        selectionStart,
+                                                        selectionEnd,
+                                                    );
+                                                    const after = value.substring(selectionEnd);
+                                                    const nextVal = `${before}${e.key}${selected}${closing}${after}`;
+                                                    setRawSchemaText(nextVal);
+                                                    setTimeout(() => {
+                                                        target.selectionStart = selectionStart + 1;
+                                                        target.selectionEnd =
+                                                            selectionStart + 1 + selected.length;
+                                                    }, 0);
+                                                    return;
+                                                }
+
+                                                // 4. Tab key -> Insert 2 spaces
+                                                if (e.key === "Tab") {
+                                                    e.preventDefault();
+                                                    const before = value.substring(
+                                                        0,
+                                                        selectionStart,
+                                                    );
+                                                    const after = value.substring(selectionEnd);
+                                                    const nextVal = `${before}  ${after}`;
+                                                    setRawSchemaText(nextVal);
+                                                    setTimeout(() => {
+                                                        target.selectionStart =
+                                                            target.selectionEnd =
+                                                                selectionStart + 2;
+                                                    }, 0);
+                                                    return;
+                                                }
+
+                                                // 5. Enter key -> Smart Auto-Indent matching previous line depth
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    const lineStart =
+                                                        value.lastIndexOf(
+                                                            "\n",
+                                                            selectionStart - 1,
+                                                        ) + 1;
+                                                    const currentLine = value.substring(
+                                                        lineStart,
+                                                        selectionStart,
+                                                    );
+                                                    const matchIndent = currentLine.match(/^(\s*)/);
+                                                    let indent = matchIndent
+                                                        ? (matchIndent[1] ?? "")
+                                                        : "";
+
+                                                    const charBeforeCursor =
+                                                        value[selectionStart - 1];
+                                                    const charAfterCursor = value[selectionEnd];
+
+                                                    if (
+                                                        charBeforeCursor === "{" ||
+                                                        charBeforeCursor === "["
+                                                    ) {
+                                                        indent += "  ";
+                                                    }
+
+                                                    if (
+                                                        (charBeforeCursor === "{" &&
+                                                            charAfterCursor === "}") ||
+                                                        (charBeforeCursor === "[" &&
+                                                            charAfterCursor === "]")
+                                                    ) {
+                                                        const outerIndent = (indent ?? "").slice(
+                                                            0,
+                                                            Math.max(0, (indent ?? "").length - 2),
+                                                        );
+                                                        const before = value.substring(
+                                                            0,
+                                                            selectionStart,
+                                                        );
+                                                        const after = value.substring(selectionEnd);
+                                                        const nextVal = `${before}\n${indent ?? ""}\n${outerIndent}${after}`;
+                                                        setRawSchemaText(nextVal);
+                                                        setTimeout(() => {
+                                                            target.selectionStart =
+                                                                target.selectionEnd =
+                                                                    selectionStart +
+                                                                    1 +
+                                                                    (indent ?? "").length;
+                                                        }, 0);
+                                                        return;
+                                                    }
+
+                                                    const before = value.substring(
+                                                        0,
+                                                        selectionStart,
+                                                    );
+                                                    const after = value.substring(selectionEnd);
+                                                    const nextVal = `${before}\n${indent ?? ""}${after}`;
+                                                    setRawSchemaText(nextVal);
+                                                    setTimeout(() => {
+                                                        target.selectionStart =
+                                                            target.selectionEnd =
+                                                                selectionStart +
+                                                                1 +
+                                                                (indent ?? "").length;
+                                                    }, 0);
+                                                    return;
+                                                }
+                                            }}
+                                            placeholder={`{\n  "id": "$faker.string.uuid",\n  "user": {\n    "name": "$faker.person.fullName"\n  }\n}`}
+                                            rows={10}
+                                            className="w-full rounded-md border border-input bg-zinc-950 text-zinc-100 p-3 font-mono text-xs shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring leading-relaxed"
+                                        />
+                                        {jsonError && (
+                                            <p className="text-xs font-mono text-destructive">
+                                                JSON Error: {jsonError}
+                                            </p>
+                                        )}
+                                        <div className="flex justify-end pt-1">
+                                            <Button
+                                                type="button"
+                                                onClick={handleSubmit}
+                                                disabled={
+                                                    updateEndpoint.isPending ||
+                                                    (editorMode === "raw" && !!jsonError)
+                                                }
+                                                size="sm"
+                                                className="h-9 gap-2 font-semibold text-primary-foreground"
+                                            >
+                                                {updateEndpoint.isPending
+                                                    ? "Saving..."
+                                                    : hasExistingSchema
+                                                      ? "Update schema"
+                                                      : "Generate schema"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <Separator />
@@ -426,20 +777,6 @@ export function SchemaBuilder({ endpoint, initialTab = "schema", onSuccess }: Sc
                                 </pre>
                             </div>
                         </CardContent>
-
-                        <div className="flex justify-center items-end px-4 pb-4">
-                            <Button
-                                onClick={handleSubmit}
-                                disabled={updateEndpoint.isPending}
-                                className="h-10 gap-2 font-semibold text-primary-foreground"
-                            >
-                                {updateEndpoint.isPending
-                                    ? "Saving..."
-                                    : hasExistingSchema
-                                      ? "Update schema"
-                                      : "Generate schema"}
-                            </Button>
-                        </div>
                     </Card>
                 </TabsContent>
 

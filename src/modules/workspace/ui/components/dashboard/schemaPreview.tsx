@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Code2, RotateCw, ShieldAlert } from "lucide-react";
+import { Code2, RotateCw, ShieldAlert, LayoutTemplate } from "lucide-react";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { CodeBlock } from "~/components/code-block";
 import { Button } from "~/components/ui/button";
 import type { HttpMethod } from "../sidebar/types";
+import { fieldsFromSchema } from "~/lib/faker-options";
+import { getTopMatches, generateCode } from "~/lib/component-templates";
 
 interface SchemaPreviewProps {
     endpoint:
@@ -42,6 +44,14 @@ export function SchemaPreview({ endpoint, fetchUrl, bearerToken }: SchemaPreview
         endpoint?.responseSchema && typeof endpoint.responseSchema === "object"
             ? Object.entries(endpoint.responseSchema as Record<string, string>)
             : [];
+
+    const schemaFields = fieldsFromSchema(endpoint?.responseSchema);
+    const topMatches = getTopMatches(schemaFields, fetchUrl);
+    const [selectedTemplateId] = useState<string | null>(null);
+
+    // Keep active template selection in sync when matches change
+    const activeMatch =
+        topMatches.find((m) => m.template.id === selectedTemplateId) ?? topMatches[0];
 
     const loadSample = useCallback(async () => {
         if (!endpoint) return;
@@ -161,15 +171,25 @@ export function SchemaPreview({ endpoint, fetchUrl, bearerToken }: SchemaPreview
                             <span>Field</span>
                             <span>Type</span>
                         </div>
-                        {fields.map(([name, type]) => (
-                            <div
-                                key={name}
-                                className="grid grid-cols-2 px-4 py-2 font-mono text-sm border-t border-zinc-100 dark:border-zinc-800"
-                            >
-                                <span className="font-medium">{name}</span>
-                                <span className="text-muted-foreground">{type}</span>
-                            </div>
-                        ))}
+                        {fields.map(([name, type]) => {
+                            const displayType =
+                                typeof type === "string"
+                                    ? type
+                                    : typeof type === "object" && type !== null
+                                      ? JSON.stringify(type)
+                                      : String(type);
+                            return (
+                                <div
+                                    key={name}
+                                    className="grid grid-cols-2 px-4 py-2 font-mono text-sm border-t border-zinc-100 dark:border-zinc-800"
+                                >
+                                    <span className="font-medium">{name}</span>
+                                    <span className="text-muted-foreground truncate">
+                                        {displayType}
+                                    </span>
+                                </div>
+                            );
+                        })}
                     </div>
 
                     {/* Config summary */}
@@ -231,6 +251,29 @@ export function SchemaPreview({ endpoint, fetchUrl, bearerToken }: SchemaPreview
                             />
                         ) : null}
                     </div>
+
+                    {/* React Component Generator Block */}
+                    {topMatches.length > 0 && activeMatch && (
+                        <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-bold font-mono text-muted-foreground flex items-center gap-2">
+                                    <LayoutTemplate className="w-4 h-4" />
+                                    React Component Code
+                                </h3>
+                            </div>
+
+                            <p className="text-xs text-muted-foreground font-mono">
+                                Copy-paste React component with custom type interface & auto-fetch
+                                logic built from your schema table.
+                            </p>
+
+                            <CodeBlock
+                                code={generateCode(activeMatch.template, schemaFields, fetchUrl)}
+                                lang="tsx"
+                                maxHeight="350px"
+                            />
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

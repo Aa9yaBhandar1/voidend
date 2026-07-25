@@ -38,7 +38,7 @@ export function generateAndSaveData(
     count: number,
 ): unknown {
     const filePath = getEndpointFilePath(projectId, endpointId);
-    const data = resolveResponseData(schema, count);
+    const data = resolveResponseData(schema, count, projectId);
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
     return data;
 }

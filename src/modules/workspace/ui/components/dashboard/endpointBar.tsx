@@ -208,6 +208,7 @@ export const EndpointBar = ({ projectId, mockOrigin, endpoint, project }: Endpoi
                         {endpoint && (
                             <SchemaBuilder
                                 endpoint={endpoint}
+                                projectId={projectId}
                                 initialTab={activeTab}
                                 onSuccess={() => setIsSchemaBuilderOpen(false)}
                             />
