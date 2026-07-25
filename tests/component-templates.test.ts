@@ -18,7 +18,7 @@ import { findField, buildFetchHook, buildInterface } from "~/lib/component-templ
 
 describe("Component Templates Library", () => {
     describe("matchTemplates & getTopMatches", () => {
-        it("should return dynamicGridTemplate for any schema", () => {
+        it("should rank specialized templates (e.g. user-card) when fields match user schema", () => {
             const fields = [
                 { id: "1", fieldName: "username", dataType: "$faker.internet.username" },
                 { id: "2", fieldName: "email", dataType: "$faker.internet.email" },
@@ -26,7 +26,7 @@ describe("Component Templates Library", () => {
             const matches = getTopMatches(fields, "/api/users");
 
             expect(matches.length).toBeGreaterThan(0);
-            expect(matches[0]!.template.id).toBe("dynamic-grid");
+            expect(matches[0]!.template.id).toBe("user-card");
         });
 
         it("should rank dynamicGridTemplate when path keyword matches", () => {
