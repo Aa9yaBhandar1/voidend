@@ -1,3 +1,18 @@
 #!/bin/sh
 
-pnpm check && pnpm typecheck
+run_step() {
+    label="$1"
+    shift
+    output=$("$@" 2>&1)
+    status=$?
+    if [ $status -ne 0 ]; then
+        echo "✗ $label failed"
+        echo "$output"
+        exit $status
+    fi
+    echo "✓ $label done"
+}
+
+run_step "check" pnpm check
+run_step "typecheck" pnpm typecheck
+run_step "test" pnpm test:unit

@@ -20,9 +20,9 @@ export function normalizeBasePath(basePath: string | undefined | null): string {
 export function stripBasePath(incomingPath: string, basePath: string | undefined | null): string {
     const normalized = normalizeBasePath(basePath);
     if (!normalized) return incomingPath;
-    if (incomingPath.startsWith(normalized)) {
-        const stripped = incomingPath.slice(normalized.length);
-        return stripped || "/";
+    if (incomingPath === normalized) return "/";
+    if (incomingPath.startsWith(normalized + "/")) {
+        return incomingPath.slice(normalized.length);
     }
     return incomingPath;
 }
@@ -48,6 +48,5 @@ export function buildMockUrl(
 
 export function getMockOrigin(): string {
     if (typeof window !== "undefined") return window.location.origin;
-    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
     return `http://localhost:${process.env.PORT ?? 3000}`;
 }
