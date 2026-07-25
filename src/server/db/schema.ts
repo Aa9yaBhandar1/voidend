@@ -96,3 +96,31 @@ export const endpoints_table = createTable(
         index("endpoint_path_idx").on(t.projectId, t.method, t.path),
     ],
 );
+
+export const auth_configs_table = createTable(
+    "auth_configs",
+    (d) => ({
+        id: d
+            .text()
+            .primaryKey()
+            .$defaultFn(() => crypto.randomUUID()),
+        endpointId: d
+            .text()
+            .notNull()
+            .references(() => endpoints_table.id, { onDelete: "cascade" }),
+        isLoginEndpoint: d.integer({ mode: "boolean" }).notNull().default(false),
+        requiresAuth: d.integer({ mode: "boolean" }).notNull().default(false),
+        secret: d.text().notNull(),
+        tokenExpirySeconds: d.integer().notNull().default(3600),
+        createdAt: d
+            .integer({ mode: "timestamp" })
+            .notNull()
+            .default(sql`(unixepoch())`),
+        updatedAt: d
+            .integer({ mode: "timestamp" })
+            .notNull()
+            .default(sql`(unixepoch())`)
+            .$onUpdate(() => new Date()),
+    }),
+    (t) => [index("auth_config_endpoint_idx").on(t.endpointId)],
+);
