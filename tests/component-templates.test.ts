@@ -315,9 +315,17 @@ describe("Component Templates Library", () => {
     });
 
     describe("COMPONENT_TEMPLATES registry", () => {
-        it("contains dynamicGridTemplate as primary template", () => {
-            expect(COMPONENT_TEMPLATES.length).toBeGreaterThan(0);
-            expect(COMPONENT_TEMPLATES[0]!.id).toBe("dynamic-grid");
+        it("contains all 7 component templates", () => {
+            expect(COMPONENT_TEMPLATES.length).toBe(7);
+            expect(COMPONENT_TEMPLATES.map((t) => t.id)).toEqual([
+                "dynamic-grid",
+                "user-card",
+                "post-card",
+                "product-card",
+                "todo-list",
+                "transaction-row",
+                "comment-item",
+            ]);
         });
     });
 });

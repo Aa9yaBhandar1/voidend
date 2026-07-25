@@ -1,8 +1,22 @@
 import type { SchemaField } from "~/lib/faker-options";
 import type { ComponentTemplate, TemplateMatch } from "./types";
 import { dynamicGridTemplate } from "./dynamic-grid";
+import { userCardTemplate } from "./user-card";
+import { postCardTemplate } from "./post-card";
+import { productCardTemplate } from "./product-card";
+import { todoListTemplate } from "./todo-list";
+import { transactionRowTemplate } from "./transaction-row";
+import { commentItemTemplate } from "./comment-item";
 
-export const COMPONENT_TEMPLATES: ComponentTemplate[] = [dynamicGridTemplate];
+export const COMPONENT_TEMPLATES: ComponentTemplate[] = [
+    dynamicGridTemplate,
+    userCardTemplate,
+    postCardTemplate,
+    productCardTemplate,
+    todoListTemplate,
+    transactionRowTemplate,
+    commentItemTemplate,
+];
 
 function normalize(name: string): string {
     return name.toLowerCase().replace(/[_\s-]/g, "");
