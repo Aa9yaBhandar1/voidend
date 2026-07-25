@@ -178,4 +178,11 @@ describe("resolveResponseData", () => {
         const ids = result.map((r) => r.id);
         expect(new Set(ids).size).toBe(5);
     });
+
+    it("produces identical output when given the same string seed 'voidend'", () => {
+        const schema = { id: "$faker.string.uuid", email: "$faker.internet.email" };
+        const res1 = resolveResponseData(schema, 3, "voidend");
+        const res2 = resolveResponseData(schema, 3, "voidend");
+        expect(res1).toEqual(res2);
+    });
 });

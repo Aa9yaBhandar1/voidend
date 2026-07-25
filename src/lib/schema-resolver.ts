@@ -1,5 +1,14 @@
 import { faker } from "@faker-js/faker";
 
+export function stringToSeed(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash);
+}
+
 export function resolveSchema(schema: unknown): unknown {
     if (typeof schema === "string" && schema.startsWith("$faker.")) {
         const path = schema.slice(7).split(".");
@@ -26,7 +35,17 @@ export function resolveSchema(schema: unknown): unknown {
 }
 
 /** Mirrors server-side response generation in endpoint-data-store. */
-export function resolveResponseData(schema: unknown, count: number): unknown {
+export function resolveResponseData(
+    schema: unknown,
+    count: number,
+    seed: string | number = "voidend",
+): unknown {
+    if (typeof seed === "string") {
+        faker.seed(stringToSeed(seed));
+    } else {
+        faker.seed(seed);
+    }
+
     return count > 1
         ? Array.from({ length: count }, () => resolveSchema(schema))
         : resolveSchema(schema);
