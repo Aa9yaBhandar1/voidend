@@ -4,9 +4,16 @@ import {
     matchTemplates,
     getTopMatches,
     generateCode,
+    generateHtmlCode,
     COMPONENT_TEMPLATES,
 } from "~/lib/component-templates";
 import { dynamicGridTemplate } from "~/lib/component-templates/dynamic-grid";
+import { userCardTemplate } from "~/lib/component-templates/user-card";
+import { postCardTemplate } from "~/lib/component-templates/post-card";
+import { productCardTemplate } from "~/lib/component-templates/product-card";
+import { todoListTemplate } from "~/lib/component-templates/todo-list";
+import { transactionRowTemplate } from "~/lib/component-templates/transaction-row";
+import { commentItemTemplate } from "~/lib/component-templates/comment-item";
 import { findField, buildFetchHook, buildInterface } from "~/lib/component-templates/codegen-utils";
 
 describe("Component Templates Library", () => {
@@ -170,6 +177,140 @@ describe("Component Templates Library", () => {
 
             expect(code).toContain("export function DataCardList()");
             expect(code).toContain('fetch("https://mock.api/v1/custom")');
+        });
+    });
+
+    describe("HTML Template Code Generation", () => {
+        it("generates valid single-file HTML for dynamicGridTemplate", () => {
+            const fields = fieldsFromSchema({
+                id: "$faker.string.uuid",
+                name: "$faker.person.fullName",
+                email: "$faker.internet.email",
+                avatar: "$faker.image.avatar",
+            });
+
+            const html = generateHtmlCode(dynamicGridTemplate, fields, "https://mock.api/v1/users");
+
+            expect(html).toContain("<!DOCTYPE html>");
+            expect(html).toContain("<style>");
+            expect(html).toContain('<script type="module">');
+            expect(html).toContain('fetch("https://mock.api/v1/users")');
+            expect(html).toContain("avatar");
+            expect(html).toContain("email");
+        });
+
+        it("generates valid HTML for userCardTemplate", () => {
+            const fields = fieldsFromSchema({
+                id: "uuid",
+                fullName: "fullName",
+                username: "username",
+                email: "email",
+            });
+
+            const html = generateHtmlCode(userCardTemplate, fields, "/api/users");
+
+            expect(html).toContain("<!DOCTYPE html>");
+            expect(html).toContain("<title>User Cards</title>");
+            expect(html).toContain("fullName");
+            expect(html).toContain("username");
+            expect(html).toContain("email");
+            expect(html).toContain('fetch("/api/users")');
+        });
+
+        it("generates valid HTML for postCardTemplate", () => {
+            const fields = fieldsFromSchema({
+                id: "uuid",
+                title: "lorem.sentence",
+                content: "lorem.paragraph",
+                author: "person.fullName",
+            });
+
+            const html = generateHtmlCode(postCardTemplate, fields, "/api/posts");
+
+            expect(html).toContain("<!DOCTYPE html>");
+            expect(html).toContain("<title>Post Cards</title>");
+            expect(html).toContain("title");
+            expect(html).toContain("content");
+            expect(html).toContain("author");
+            expect(html).toContain('fetch("/api/posts")');
+        });
+
+        it("generates valid HTML for productCardTemplate", () => {
+            const fields = fieldsFromSchema({
+                id: "uuid",
+                name: "commerce.productName",
+                price: "commerce.price",
+                inStock: "datatype.boolean",
+            });
+
+            const html = generateHtmlCode(productCardTemplate, fields, "/api/products");
+
+            expect(html).toContain("<!DOCTYPE html>");
+            expect(html).toContain("<title>Product Cards</title>");
+            expect(html).toContain("name");
+            expect(html).toContain("price");
+            expect(html).toContain("inStock");
+            expect(html).toContain('fetch("/api/products")');
+        });
+
+        it("generates valid HTML for todoListTemplate", () => {
+            const fields = fieldsFromSchema({
+                id: "uuid",
+                title: "lorem.sentence",
+                completed: "datatype.boolean",
+                priority: "number.int",
+            });
+
+            const html = generateHtmlCode(todoListTemplate, fields, "/api/todos");
+
+            expect(html).toContain("<!DOCTYPE html>");
+            expect(html).toContain("<title>Todo List</title>");
+            expect(html).toContain("title");
+            expect(html).toContain("completed");
+            expect(html).toContain("priority");
+            expect(html).toContain('fetch("/api/todos")');
+        });
+
+        it("generates valid HTML for transactionRowTemplate", () => {
+            const fields = fieldsFromSchema({
+                id: "uuid",
+                amount: "finance.amount",
+                date: "date.recent",
+                merchant: "company.name",
+            });
+
+            const html = generateHtmlCode(transactionRowTemplate, fields, "/api/transactions");
+
+            expect(html).toContain("<!DOCTYPE html>");
+            expect(html).toContain("<title>Transaction Table</title>");
+            expect(html).toContain("amount");
+            expect(html).toContain("date");
+            expect(html).toContain("merchant");
+            expect(html).toContain('fetch("/api/transactions")');
+        });
+
+        it("generates valid HTML for commentItemTemplate", () => {
+            const fields = fieldsFromSchema({
+                id: "uuid",
+                author: "person.fullName",
+                comment: "lorem.sentence",
+            });
+
+            const html = generateHtmlCode(commentItemTemplate, fields, "/api/comments");
+
+            expect(html).toContain("<!DOCTYPE html>");
+            expect(html).toContain("<title>Comments</title>");
+            expect(html).toContain("author");
+            expect(html).toContain("comment");
+            expect(html).toContain('fetch("/api/comments")');
+        });
+
+        it("handles empty schema fields gracefully without crashing", () => {
+            const fields = fieldsFromSchema({});
+            const html = generateHtmlCode(dynamicGridTemplate, fields, "/api/empty");
+
+            expect(html).toContain("<!DOCTYPE html>");
+            expect(html).toContain('fetch("/api/empty")');
         });
     });
 

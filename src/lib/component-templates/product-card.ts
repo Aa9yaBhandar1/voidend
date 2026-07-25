@@ -1,5 +1,12 @@
 import type { ComponentTemplate } from "./types";
-import { findField, buildFetchHook, buildInterface } from "./codegen-utils";
+import {
+    findField,
+    buildFetchHook,
+    buildInterface,
+    buildHtmlFetchScript,
+    buildHtmlStyles,
+    safeGet,
+} from "./codegen-utils";
 
 export const productCardTemplate: ComponentTemplate = {
     id: "product-card",
@@ -93,6 +100,79 @@ ${
     </div>
   );
 }
+`;
+    },
+    htmlCode: (fields, endpointUrl) => {
+        const nameField = findField(fields, ["name", "productname", "title"]) ?? "name";
+        const priceField = findField(fields, ["price", "amount", "cost"]) ?? "price";
+        const imageField = findField(fields, ["image", "photo", "picture", "thumbnail", "cover"]);
+        const descriptionField = findField(fields, [
+            "description",
+            "productdescription",
+            "summary",
+        ]);
+        const categoryField = findField(fields, ["category", "department", "genre"]);
+        const brandField = findField(fields, ["brand", "company", "manufacturer"]);
+        const inStockField = findField(fields, ["instock", "available", "isinstock"]);
+        const ratingField = findField(fields, ["rating", "score", "stars"]);
+
+        const imgHtml = imageField
+            ? `\${${safeGet(imageField)} ? \`<img class="product-img" src="\${${safeGet(imageField)}}" alt="product">\` : '<div class="product-img-placeholder">📦</div>'}`
+            : `<div class="product-img-placeholder">📦</div>`;
+
+        const categoryBadge = categoryField
+            ? `\${${safeGet(categoryField)} ? \`<span class="badge badge-zinc">\${${safeGet(categoryField)}}</span>\` : ''}`
+            : "";
+        const brandSpan = brandField
+            ? `\${${safeGet(brandField)} ? \`<span style="font-size:.75rem;color:var(--muted)">\${${safeGet(brandField)}}</span>\` : ''}`
+            : "";
+        const descSpan = descriptionField
+            ? `\${${safeGet(descriptionField)} ? \`<div class="card-desc" style="padding:0 .85rem">\${${safeGet(descriptionField)}}</div>\` : ''}`
+            : "";
+        const ratingSpan = ratingField
+            ? `\${${safeGet(ratingField)} ? \`<span style="font-size:.78rem;color:#f59e0b">★ \${${safeGet(ratingField)}}</span>\` : ''}`
+            : "";
+        const inStockBadge = inStockField
+            ? `\${item[${JSON.stringify(inStockField)}] !== undefined ? \`<span class="badge \${item[${JSON.stringify(inStockField)}] ? 'badge-emerald' : 'badge-rose'}">\${item[${JSON.stringify(inStockField)}] ? 'In stock' : 'Out of stock'}</span>\` : ''}`
+            : "";
+
+        const renderFn = `item => \`<div class="card" style="padding:0;overflow:hidden">
+  ${imgHtml}
+  <div class="product-body">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">
+      ${categoryBadge}
+      ${brandSpan}
+    </div>
+    <div class="card-title" style="padding:0">\${${safeGet(nameField)}}</div>
+    ${descSpan}
+  </div>
+  <div class="product-footer">
+    <div>
+      <span class="price">$\${${safeGet(priceField)}}</span>
+      ${ratingSpan}
+    </div>
+    ${inStockBadge}
+  </div>
+</div>\``;
+
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Cards</title>
+  <style>
+${buildHtmlStyles()}
+  </style>
+</head>
+<body>
+  <p id="error"></p>
+  <div id="root" class="grid"></div>
+  <script type="module">
+${buildHtmlFetchScript(endpointUrl, renderFn)}
+  </script>
+</body>
+</html>
 `;
     },
 };

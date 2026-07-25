@@ -1,5 +1,12 @@
 import type { ComponentTemplate } from "./types";
-import { findField, buildFetchHook, buildInterface } from "./codegen-utils";
+import {
+    findField,
+    buildFetchHook,
+    buildInterface,
+    buildHtmlFetchScript,
+    buildHtmlStyles,
+    safeGet,
+} from "./codegen-utils";
 
 export const userCardTemplate: ComponentTemplate = {
     id: "user-card",
@@ -70,6 +77,73 @@ ${emailField ? `            {user.${emailField} && <p className="truncate">Email
     </div>
   );
 }
+`;
+    },
+    htmlCode: (fields, endpointUrl) => {
+        const fullNameField = findField(fields, ["fullname", "name", "displayname"]) ?? "name";
+        const usernameField = findField(fields, ["username", "handle"]);
+        const avatarField = findField(fields, ["avatar", "image", "photo", "picture"]);
+        const emailField = findField(fields, ["email"]);
+        const jobTitleField = findField(fields, ["jobtitle", "role", "title"]);
+        const phoneField = findField(fields, ["phone", "phonenumber", "mobile", "cell"]);
+        const bioField = findField(fields, ["bio", "about", "description"]);
+
+        const avatarHtml = avatarField
+            ? `\${${safeGet(avatarField)} ? \`<img class="avatar" src="\${${safeGet(avatarField)}}" alt="\${${safeGet(fullNameField)}}">\` : \`<div class="avatar-placeholder">\${String(${safeGet(fullNameField)}).charAt(0).toUpperCase() || 'U'}</div>\`}`
+            : `<div class="avatar-placeholder">\${String(${safeGet(fullNameField)}).charAt(0).toUpperCase() || 'U'}</div>`;
+
+        const extraRows = [
+            usernameField
+                ? `\${${safeGet(usernameField)} ? \`<div class="detail-row"><span class="detail-key">@username:</span><span>\${${safeGet(usernameField)}}</span></div>\` : ''}`
+                : "",
+            jobTitleField
+                ? `\${${safeGet(jobTitleField)} ? \`<div class="detail-row"><span class="detail-key">role:</span><span>\${${safeGet(jobTitleField)}}</span></div>\` : ''}`
+                : "",
+            emailField
+                ? `\${${safeGet(emailField)} ? \`<div class="detail-row"><span class="detail-key">email:</span><span>\${${safeGet(emailField)}}</span></div>\` : ''}`
+                : "",
+            phoneField
+                ? `\${${safeGet(phoneField)} ? \`<div class="detail-row"><span class="detail-key">phone:</span><span>\${${safeGet(phoneField)}}</span></div>\` : ''}`
+                : "",
+        ]
+            .filter(Boolean)
+            .join("\n      ");
+
+        const bioHtml = bioField
+            ? `\${${safeGet(bioField)} ? \`<div class="card-desc">\${${safeGet(bioField)}}</div>\` : ''}`
+            : "";
+
+        const renderFn = `item => \`<div class="card">
+  <div class="card-header">
+    ${avatarHtml}
+    <div style="min-width:0;flex:1">
+      <div class="card-title">\${${safeGet(fullNameField)}}</div>
+    </div>
+  </div>
+  ${bioHtml}
+  <div class="details">
+    ${extraRows}
+  </div>
+</div>\``;
+
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Cards</title>
+  <style>
+${buildHtmlStyles()}
+  </style>
+</head>
+<body>
+  <p id="error"></p>
+  <div id="root" class="grid"></div>
+  <script type="module">
+${buildHtmlFetchScript(endpointUrl, renderFn)}
+  </script>
+</body>
+</html>
 `;
     },
 };

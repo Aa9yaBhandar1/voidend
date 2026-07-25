@@ -7,7 +7,7 @@ import { CodeBlock } from "~/components/code-block";
 import { Button } from "~/components/ui/button";
 import type { HttpMethod } from "../sidebar/types";
 import { fieldsFromSchema } from "~/lib/faker-options";
-import { getTopMatches, generateCode } from "~/lib/component-templates";
+import { getTopMatches, generateCode, generateHtmlCode } from "~/lib/component-templates";
 
 interface SchemaPreviewProps {
     endpoint:
@@ -48,6 +48,8 @@ export function SchemaPreview({ endpoint, fetchUrl, bearerToken }: SchemaPreview
     const schemaFields = fieldsFromSchema(endpoint?.responseSchema);
     const topMatches = getTopMatches(schemaFields, fetchUrl);
     const [selectedTemplateId] = useState<string | null>(null);
+
+    const [activeTab, setActiveTab] = useState<"react" | "html">("react");
 
     // Keep active template selection in sync when matches change
     const activeMatch =
@@ -252,26 +254,70 @@ export function SchemaPreview({ endpoint, fetchUrl, bearerToken }: SchemaPreview
                         ) : null}
                     </div>
 
-                    {/* React Component Generator Block */}
+                    {/* Component Generator Block */}
                     {topMatches.length > 0 && activeMatch && (
                         <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 space-y-3">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-sm font-bold font-mono text-muted-foreground flex items-center gap-2">
                                     <LayoutTemplate className="w-4 h-4" />
-                                    React Component Code
+                                    {activeTab === "react"
+                                        ? "React Component Code"
+                                        : "HTML / Vanilla JS Code"}
                                 </h3>
+
+                                <div className="flex items-center bg-zinc-200 dark:bg-zinc-800 p-0.5 rounded-lg text-xs font-mono">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab("react")}
+                                        className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                                            activeTab === "react"
+                                                ? "bg-white dark:bg-zinc-900 text-foreground shadow-xs"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        }`}
+                                    >
+                                        React
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab("html")}
+                                        className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                                            activeTab === "html"
+                                                ? "bg-white dark:bg-zinc-900 text-foreground shadow-xs"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        }`}
+                                    >
+                                        HTML
+                                    </button>
+                                </div>
                             </div>
 
                             <p className="text-xs text-muted-foreground font-mono">
-                                Copy-paste React component with custom type interface & auto-fetch
-                                logic built from your schema table.
+                                {activeTab === "react"
+                                    ? "Copy-paste React component with custom type interface & auto-fetch logic built from your schema table."
+                                    : "Standalone HTML file with inline <style> and <script> tag auto-fetching from your endpoint."}
                             </p>
 
-                            <CodeBlock
-                                code={generateCode(activeMatch.template, schemaFields, fetchUrl)}
-                                lang="tsx"
-                                maxHeight="350px"
-                            />
+                            {activeTab === "react" ? (
+                                <CodeBlock
+                                    code={generateCode(
+                                        activeMatch.template,
+                                        schemaFields,
+                                        fetchUrl,
+                                    )}
+                                    lang="tsx"
+                                    maxHeight="350px"
+                                />
+                            ) : (
+                                <CodeBlock
+                                    code={generateHtmlCode(
+                                        activeMatch.template,
+                                        schemaFields,
+                                        fetchUrl,
+                                    )}
+                                    lang="html"
+                                    maxHeight="350px"
+                                />
+                            )}
                         </div>
                     )}
                 </CardContent>

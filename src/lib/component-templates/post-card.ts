@@ -1,5 +1,12 @@
 import type { ComponentTemplate } from "./types";
-import { findField, buildFetchHook, buildInterface } from "./codegen-utils";
+import {
+    findField,
+    buildFetchHook,
+    buildInterface,
+    buildHtmlFetchScript,
+    buildHtmlStyles,
+    safeGet,
+} from "./codegen-utils";
 
 export const postCardTemplate: ComponentTemplate = {
     id: "post-card",
@@ -54,6 +61,53 @@ ${authorField ? `              <span>{post.${authorField}}</span>\n` : ""}${publ
     </div>
   );
 }
+`;
+    },
+    htmlCode: (fields, endpointUrl) => {
+        const titleField = findField(fields, ["title"]) ?? "title";
+        const contentField = findField(fields, ["content", "body", "paragraph"]) ?? "content";
+        const authorField = findField(fields, ["author", "fullname", "username"]);
+        const coverImageField = findField(fields, ["coverimage", "image", "thumbnail"]);
+        const publishedAtField = findField(fields, ["publishedat", "createdat", "date"]);
+
+        const coverHtml = coverImageField
+            ? `\${${safeGet(coverImageField)} ? \`<img class="cover" src="\${${safeGet(coverImageField)}}" alt="cover">\` : ''}`
+            : "";
+        const authorHtml = authorField
+            ? `\${${safeGet(authorField)} ? \`<span>\${${safeGet(authorField)}}</span>\` : ''}`
+            : "";
+        const dateHtml = publishedAtField
+            ? `\${${safeGet(publishedAtField)} ? \`<span>\${${safeGet(publishedAtField)}}</span>\` : ''}`
+            : "";
+
+        const renderFn = `item => \`<article class="article">
+  ${coverHtml}
+  <div class="article-body">
+    <div class="article-title">\${${safeGet(titleField)}}</div>
+    <div class="article-excerpt">\${${safeGet(contentField)}}</div>
+    <div class="article-footer">${authorHtml}${dateHtml}</div>
+  </div>
+</article>\``;
+
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Post Cards</title>
+  <style>
+${buildHtmlStyles()}
+  .grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  </style>
+</head>
+<body>
+  <p id="error"></p>
+  <div id="root" class="grid"></div>
+  <script type="module">
+${buildHtmlFetchScript(endpointUrl, renderFn)}
+  </script>
+</body>
+</html>
 `;
     },
 };

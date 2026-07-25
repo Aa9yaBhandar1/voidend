@@ -1,5 +1,15 @@
 import type { ComponentTemplate } from "./types";
-import { buildFetchHook, buildInterface } from "./codegen-utils";
+import {
+    buildFetchHook,
+    buildInterface,
+    buildHtmlFetchScript,
+    buildHtmlStyles,
+    safeGet,
+} from "./codegen-utils";
+
+function normalize(s: string): string {
+    return s.toLowerCase().replace(/[_\s-]/g, "");
+}
 
 function mapDataTypeToTsType(dataType: string): string {
     const dt = dataType.toLowerCase();
@@ -19,10 +29,6 @@ function mapDataTypeToTsType(dataType: string): string {
         return "number";
     }
     return "string";
-}
-
-function normalize(s: string): string {
-    return s.toLowerCase().replace(/[_\s-]/g, "");
 }
 
 function renderPropAccess(path: string | undefined): string {
@@ -227,6 +233,144 @@ ${detailFields
     </div>
   );
 }
+`;
+    },
+    htmlCode: (fields, endpointUrl) => {
+        const validFields = fields.filter((f) => f.fieldName.trim().length > 0);
+
+        const idField =
+            validFields.find((f) => {
+                const n = normalize(f.fieldName);
+                const d = normalize(f.dataType);
+                return (
+                    n === "id" ||
+                    n.includes("uuid") ||
+                    n.endsWith("id") ||
+                    d.includes("uuid") ||
+                    d.includes("nanoid")
+                );
+            })?.fieldName ??
+            validFields[0]?.fieldName ??
+            "id";
+
+        const titleField = validFields.find((f) => {
+            const n = normalize(f.fieldName);
+            const d = normalize(f.dataType);
+            return (
+                n.includes("name") ||
+                n.includes("title") ||
+                n.includes("label") ||
+                n.includes("username") ||
+                n.includes("user") ||
+                d.includes("fullname") ||
+                d.includes("firstname") ||
+                d.includes("productname") ||
+                d.includes("food.dish") ||
+                d.includes("vehicle.vehicle")
+            );
+        })?.fieldName;
+
+        const subtitleField = validFields.find((f) => {
+            const n = normalize(f.fieldName);
+            const d = normalize(f.dataType);
+            return (
+                f.fieldName !== titleField &&
+                (n.includes("username") ||
+                    n.includes("role") ||
+                    n.includes("job") ||
+                    n.includes("category") ||
+                    n.includes("status") ||
+                    d.includes("username") ||
+                    d.includes("jobtitle") ||
+                    d.includes("email"))
+            );
+        })?.fieldName;
+
+        const avatarField = validFields.find((f) => {
+            const n = normalize(f.fieldName);
+            const d = normalize(f.dataType);
+            return (
+                n.includes("avatar") ||
+                n.includes("image") ||
+                n.includes("photo") ||
+                n.includes("picture") ||
+                d.includes("image.avatar") ||
+                d.includes("image.url")
+            );
+        })?.fieldName;
+
+        const descriptionField = validFields.find((f) => {
+            const n = normalize(f.fieldName);
+            const d = normalize(f.dataType);
+            return (
+                f.fieldName !== titleField &&
+                f.fieldName !== subtitleField &&
+                (n.includes("bio") ||
+                    n.includes("description") ||
+                    n.includes("comment") ||
+                    n.includes("summary") ||
+                    d.includes("lorem.paragraph") ||
+                    d.includes("person.bio"))
+            );
+        })?.fieldName;
+
+        const detailFields = validFields.filter(
+            (f) =>
+                f.fieldName !== idField &&
+                f.fieldName !== titleField &&
+                f.fieldName !== subtitleField &&
+                f.fieldName !== avatarField &&
+                f.fieldName !== descriptionField,
+        );
+
+        const avatarHtml = avatarField
+            ? `\${${safeGet(avatarField)} ? \`<img class="avatar" src="\${${safeGet(avatarField)}}" alt="avatar">\` : \`<div class="avatar-placeholder">\${String(${safeGet(titleField)}).charAt(0).toUpperCase() || '#'}</div>\`}`
+            : `<div class="avatar-placeholder">${titleField ? `\${String(${safeGet(titleField)}).charAt(0).toUpperCase() || 'D'}` : "D"}</div>`;
+
+        const titleHtml = titleField
+            ? `<div class="card-title">\${${safeGet(titleField)}}</div>`
+            : `<div class="card-title">Item</div>`;
+        const subtitleHtml = subtitleField
+            ? `\${${safeGet(subtitleField)} ? \`<div class="card-sub">\${${safeGet(subtitleField)}}</div>\` : ''}`
+            : "";
+        const descHtml = descriptionField
+            ? `\${${safeGet(descriptionField)} ? \`<div class="card-desc">\${${safeGet(descriptionField)}}</div>\` : ''}`
+            : "";
+        const detailsHtml =
+            detailFields.length > 0
+                ? `<div class="details">\${[${detailFields.map((f) => `[${JSON.stringify(f.fieldName)}, item[${JSON.stringify(f.fieldName)}]]`).join(", ")}].filter(([,v]) => v !== undefined).map(([k,v]) => \`<div class="detail-row"><span class="detail-key">\${k}:</span><span>\${v}</span></div>\`).join('')}</div>`
+                : "";
+
+        const renderFn = `item => \`<div class="card">
+  <div class="card-header">
+    ${avatarHtml}
+    <div style="min-width:0;flex:1">
+      ${titleHtml}
+      ${subtitleHtml}
+    </div>
+  </div>
+  ${descHtml}
+  ${detailsHtml}
+</div>\``;
+
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Card Grid</title>
+  <style>
+${buildHtmlStyles()}
+  </style>
+</head>
+<body>
+  <p id="error"></p>
+  <div id="root" class="grid"></div>
+  <script type="module">
+${buildHtmlFetchScript(endpointUrl, renderFn)}
+  </script>
+</body>
+</html>
 `;
     },
 };

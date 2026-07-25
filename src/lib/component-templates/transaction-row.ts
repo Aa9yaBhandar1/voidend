@@ -1,5 +1,12 @@
 import type { ComponentTemplate } from "./types";
-import { findField, buildFetchHook, buildInterface } from "./codegen-utils";
+import {
+    findField,
+    buildFetchHook,
+    buildInterface,
+    buildHtmlFetchScript,
+    buildHtmlStyles,
+    safeGet,
+} from "./codegen-utils";
 
 export const transactionRowTemplate: ComponentTemplate = {
     id: "transaction-row",
@@ -84,6 +91,72 @@ ${merchantField ? `              <td className="py-3 px-4 font-sans font-medium 
     </div>
   );
 }
+`;
+    },
+    htmlCode: (fields, endpointUrl) => {
+        const amountField = findField(fields, ["amount", "price", "value", "cost"]) ?? "amount";
+        const dateField = findField(fields, ["date", "createdat", "timestamp", "time"]) ?? "date";
+        const currencyField = findField(fields, ["currency", "currencycode", "symbol"]);
+        const statusField = findField(fields, ["status", "state"]);
+        const descriptionField = findField(fields, ["description", "note", "title", "details"]);
+        const merchantField = findField(fields, ["merchant", "payee", "company", "vendor"]);
+        const categoryField = findField(fields, ["category", "type", "department"]);
+
+        const merchantTh = merchantField ? `<th>Merchant</th>` : "";
+        const descTh = descriptionField ? `<th>Description</th>` : "";
+        const categoryTh = categoryField ? `<th>Category</th>` : "";
+        const statusTh = statusField ? `<th>Status</th>` : "";
+
+        const merchantTd = merchantField
+            ? `\${${safeGet(merchantField)} ? \`<td style="font-weight:500">\${${safeGet(merchantField)}}</td>\` : '<td></td>'}`
+            : "";
+        const descTd = descriptionField
+            ? `\${${safeGet(descriptionField)} ? \`<td style="color:var(--muted);font-size:.8rem">\${${safeGet(descriptionField)}}</td>\` : '<td></td>'}`
+            : "";
+        const categoryTd = categoryField
+            ? `\${${safeGet(categoryField)} ? \`<td><span class="badge badge-zinc">\${${safeGet(categoryField)}}</span></td>\` : '<td></td>'}`
+            : "";
+        const statusTd = statusField
+            ? `\${${safeGet(statusField)} ? \`<td><span class="badge badge-zinc" style="text-transform:uppercase">\${${safeGet(statusField)}}</span></td>\` : '<td></td>'}`
+            : "";
+        const amountDisplay = currencyField
+            ? `\${${safeGet(amountField)}} \${${safeGet(currencyField)}}`
+            : `\${${safeGet(amountField)}}`;
+
+        const renderFn = `item => \`<tr>
+  <td style="font-size:.8rem;color:var(--muted)">\${${safeGet(dateField)}}</td>
+  ${merchantTd}
+  ${descTd}
+  ${categoryTd}
+  ${statusTd}
+  <td class="amount">${amountDisplay}</td>
+</tr>\``;
+
+        const theadCols = `<th>Date</th>${merchantTh}${descTh}${categoryTh}${statusTh}<th style="text-align:right">Amount</th>`;
+
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transaction Table</title>
+  <style>
+${buildHtmlStyles()}
+  </style>
+</head>
+<body>
+  <p id="error"></p>
+  <div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+    <table>
+      <thead><tr>${theadCols}</tr></thead>
+      <tbody id="root"></tbody>
+    </table>
+  </div>
+  <script type="module">
+${buildHtmlFetchScript(endpointUrl, renderFn)}
+  </script>
+</body>
+</html>
 `;
     },
 };

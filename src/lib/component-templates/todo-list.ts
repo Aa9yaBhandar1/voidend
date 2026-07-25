@@ -1,5 +1,12 @@
 import type { ComponentTemplate } from "./types";
-import { findField, buildFetchHook, buildInterface } from "./codegen-utils";
+import {
+    findField,
+    buildFetchHook,
+    buildInterface,
+    buildHtmlFetchScript,
+    buildHtmlStyles,
+    safeGet,
+} from "./codegen-utils";
 
 export const todoListTemplate: ComponentTemplate = {
     id: "todo-list",
@@ -76,6 +83,63 @@ ${dueDateField ? `            {todo.${dueDateField} && <span>Due: {todo.${dueDat
     </ul>
   );
 }
+`;
+    },
+    htmlCode: (fields, endpointUrl) => {
+        const titleField = findField(fields, ["title", "task", "name", "summary"]) ?? "title";
+        const completedField =
+            findField(fields, ["completed", "done", "isdone", "iscompleted"]) ?? "completed";
+        const dueDateField = findField(fields, ["duedate", "deadline", "date", "due"]);
+        const priorityField = findField(fields, ["priority", "level", "urgency"]);
+        const categoryField = findField(fields, ["category", "tag", "project", "label"]);
+        const descriptionField = findField(fields, ["description", "details", "notes"]);
+        const assigneeField = findField(fields, ["assignee", "assignedto", "user", "owner"]);
+
+        const priorityBadge = priorityField
+            ? `\${${safeGet(priorityField)} ? \`<span class="badge badge-amber">\${${safeGet(priorityField)}}</span>\` : ''}`
+            : "";
+        const categoryBadge = categoryField
+            ? `\${${safeGet(categoryField)} ? \`<span class="badge badge-zinc">\${${safeGet(categoryField)}}</span>\` : ''}`
+            : "";
+        const descHtml = descriptionField
+            ? `\${${safeGet(descriptionField)} ? \`<div style="margin-left:1.6rem;font-size:.78rem;color:var(--muted)">\${${safeGet(descriptionField)}}</div>\` : ''}`
+            : "";
+        const dueDateHtml = dueDateField
+            ? `\${${safeGet(dueDateField)} ? \`<span style="font-size:.72rem;color:var(--muted)">Due: \${${safeGet(dueDateField)}}</span>\` : ''}`
+            : "";
+        const assigneeHtml = assigneeField
+            ? `\${${safeGet(assigneeField)} ? \`<span style="font-size:.72rem;color:var(--muted)">Assignee: \${${safeGet(assigneeField)}}</span>\` : ''}`
+            : "";
+
+        const renderFn = `item => \`<li class="todo-item">
+  <div class="todo-row">
+    <input type="checkbox" \${item[${JSON.stringify(completedField)}] ? 'checked' : ''} onclick="return false" style="width:16px;height:16px;flex-shrink:0">
+    <span class="todo-title \${item[${JSON.stringify(completedField)}] ? 'done' : ''}">\${${safeGet(titleField)}}</span>
+    ${priorityBadge}
+    ${categoryBadge}
+  </div>
+  ${descHtml}
+  <div style="margin-left:1.6rem;display:flex;gap:.75rem">${dueDateHtml}${assigneeHtml}</div>
+</li>\``;
+
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo List</title>
+  <style>
+${buildHtmlStyles()}
+  </style>
+</head>
+<body>
+  <p id="error"></p>
+  <ul id="root" class="todo-list"></ul>
+  <script type="module">
+${buildHtmlFetchScript(endpointUrl, renderFn)}
+  </script>
+</body>
+</html>
 `;
     },
 };

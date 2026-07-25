@@ -1,5 +1,12 @@
 import type { ComponentTemplate } from "./types";
-import { findField, buildFetchHook, buildInterface } from "./codegen-utils";
+import {
+    findField,
+    buildFetchHook,
+    buildInterface,
+    buildHtmlFetchScript,
+    buildHtmlStyles,
+    safeGet,
+} from "./codegen-utils";
 
 export const commentItemTemplate: ComponentTemplate = {
     id: "comment-item",
@@ -54,6 +61,53 @@ ${createdAtField ? `              <span className="text-xs text-gray-400">{comme
     </div>
   );
 }
+`;
+    },
+    htmlCode: (fields, endpointUrl) => {
+        const authorField =
+            findField(fields, ["author", "fullname", "username", "name"]) ?? "author";
+        const commentField =
+            findField(fields, ["comment", "message", "content", "text"]) ?? "comment";
+        const avatarField = findField(fields, ["avatar", "image", "photo"]);
+        const createdAtField = findField(fields, ["createdat", "date", "timestamp"]);
+
+        const avatarHtml = avatarField
+            ? `\${${safeGet(avatarField)} ? \`<img class="avatar" style="flex-shrink:0;align-self:flex-start" src="\${${safeGet(avatarField)}}" alt="avatar">\` : \`<div class="avatar-placeholder" style="flex-shrink:0;align-self:flex-start">\${String(${safeGet(authorField)}).charAt(0).toUpperCase() || 'U'}</div>\`}`
+            : `<div class="avatar-placeholder" style="flex-shrink:0;align-self:flex-start">\${String(${safeGet(authorField)}).charAt(0).toUpperCase() || 'U'}</div>`;
+
+        const dateHtml = createdAtField
+            ? `\${${safeGet(createdAtField)} ? \`<span class="comment-date">\${${safeGet(createdAtField)}}</span>\` : ''}`
+            : "";
+
+        const renderFn = `item => \`<div class="comment">
+  ${avatarHtml}
+  <div class="comment-body">
+    <div class="comment-meta">
+      <span class="comment-author">\${${safeGet(authorField)}}</span>
+      ${dateHtml}
+    </div>
+    <p class="comment-text">\${${safeGet(commentField)}}</p>
+  </div>
+</div>\``;
+
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comments</title>
+  <style>
+${buildHtmlStyles()}
+  </style>
+</head>
+<body>
+  <p id="error"></p>
+  <div id="root" class="comment-list"></div>
+  <script type="module">
+${buildHtmlFetchScript(endpointUrl, renderFn)}
+  </script>
+</body>
+</html>
 `;
     },
 };

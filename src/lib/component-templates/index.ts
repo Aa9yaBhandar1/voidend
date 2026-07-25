@@ -103,4 +103,12 @@ export function generateCode(
     return template.code(fields, endpointUrl);
 }
 
+export function generateHtmlCode(
+    template: ComponentTemplate,
+    fields: SchemaField[],
+    endpointUrl: string,
+): string {
+    return template.htmlCode ? template.htmlCode(fields, endpointUrl) : "";
+}
+
 export * from "./types";

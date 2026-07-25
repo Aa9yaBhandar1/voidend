@@ -10,6 +10,8 @@ export interface ComponentTemplate {
     optionalFields: string[];
     /** generates the full .tsx source as a string, using the user's actual field names */
     code: (fields: SchemaField[], endpointUrl: string) => string;
+    /** generates a standalone .html file (inline <style> + <script>) from the user's actual field names */
+    htmlCode?: (fields: SchemaField[], endpointUrl: string) => string;
 }
 
 export interface TemplateMatch {
