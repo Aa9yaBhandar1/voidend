@@ -9,7 +9,6 @@ export function Toaster() {
             position="top-right"
             closeButton
             richColors
-            expand
             toastOptions={{
                 classNames: {
                     toast: "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",

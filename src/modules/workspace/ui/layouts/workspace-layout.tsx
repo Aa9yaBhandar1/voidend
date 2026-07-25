@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PanelLeftIcon, Plus } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { Sidebar, type SidebarHandle } from "../components/sidebar/workspace-sidebar";
 import { EndpointBar } from "../components/dashboard/endpointBar";
 import { SchemaPreview } from "../components/dashboard/schemaPreview";
 import { buildMockUrl, getMockOrigin } from "~/lib/mock-path";
-import { useEndpointById } from "~/hooks/use-endpoints";
+import { useEndpointById, useEndpoints } from "~/hooks/use-endpoints";
 import { useProjectById } from "~/hooks/use-projects";
 import { ModeToggle } from "~/components/mode-toggle";
 
@@ -21,6 +21,7 @@ export function ApiClientLayout({
     const [selectedEndpointId, setSelectedEndpointId] = useState<string | null>(null);
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
     const [mockOrigin, setMockOrigin] = useState(getMockOrigin);
+    const [bearerToken, setBearerToken] = useState<string | null>(null);
 
     useEffect(() => {
         setMockOrigin(getMockOrigin());
@@ -33,11 +34,46 @@ export function ApiClientLayout({
 
     const { data: project } = useProjectById(selectedProjectId);
     const { data: endpoint } = useEndpointById(selectedEndpointId);
+    const { data: allEndpoints } = useEndpoints(selectedProjectId);
 
     const fetchUrl =
         endpoint && selectedProjectId
             ? buildMockUrl(mockOrigin, selectedProjectId, project?.basePath, endpoint.path)
             : "";
+
+    // Find the login endpoint for this project (if any)
+    const loginEndpoint = allEndpoints?.find((e) => e.authConfig?.isLoginEndpoint);
+
+    // Auto-fetch a bearer token from the login endpoint whenever it changes
+    const fetchBearerToken = useCallback(async () => {
+        if (!loginEndpoint || !selectedProjectId) {
+            setBearerToken(null);
+            return;
+        }
+        try {
+            const loginUrl = buildMockUrl(
+                mockOrigin,
+                selectedProjectId,
+                project?.basePath,
+                loginEndpoint.path,
+            );
+            const res = await fetch(loginUrl, { method: loginEndpoint.method });
+            if (!res.ok) {
+                setBearerToken(null);
+                return;
+            }
+            const json = await res.json().catch(() => null);
+            const token =
+                json && typeof json === "object" && "token" in json ? String(json.token) : null;
+            setBearerToken(token);
+        } catch {
+            setBearerToken(null);
+        }
+    }, [loginEndpoint, selectedProjectId, mockOrigin, project?.basePath]);
+
+    useEffect(() => {
+        void fetchBearerToken();
+    }, [fetchBearerToken]);
 
     return (
         <div className="relative h-full w-full overflow-hidden">
@@ -116,6 +152,7 @@ export function ApiClientLayout({
                         key={selectedEndpointId}
                         endpoint={endpoint}
                         fetchUrl={fetchUrl}
+                        bearerToken={bearerToken}
                     />
                 )}
             </div>
