@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Code2, RotateCw, ShieldAlert, LayoutTemplate } from "lucide-react";
+import { Code2, RotateCw, ShieldAlert, LayoutTemplate, Copy, Check } from "lucide-react";
 import { Card, CardContent, CardHeader } from "~/components/ui/card";
 import { CodeBlock } from "~/components/code-block";
 import { Button } from "~/components/ui/button";
@@ -34,11 +34,21 @@ export function SchemaPreview({ endpoint, fetchUrl, bearerToken }: SchemaPreview
     const [liveData, setLiveData] = useState<unknown>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [copied, setCopied] = useState(false);
     const [progress, setProgress] = useState(0);
     const animationFrameRef = useRef<number | null>(null);
 
     const requiresAuth = !!endpoint?.authConfig?.requiresAuth;
     const isLoginEndpoint = !!endpoint?.authConfig?.isLoginEndpoint;
+
+    const copySchema = useCallback(() => {
+        if (!endpoint?.responseSchema) return;
+        const text = JSON.stringify(endpoint.responseSchema, null, 2);
+        void navigator.clipboard.writeText(text).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    }, [endpoint?.responseSchema]);
 
     const fields =
         endpoint?.responseSchema && typeof endpoint.responseSchema === "object"
@@ -132,6 +142,19 @@ export function SchemaPreview({ endpoint, fetchUrl, bearerToken }: SchemaPreview
                         <Code2 className="w-5 h-5" />
                         Generated schema
                     </h2>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={copySchema}
+                        className="h-8 gap-2 font-mono text-xs"
+                    >
+                        {copied ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                        )}
+                        {copied ? "Copied!" : "Copy schema"}
+                    </Button>
                 </CardHeader>
 
                 <CardContent className="space-y-6">

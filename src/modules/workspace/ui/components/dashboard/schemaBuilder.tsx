@@ -82,6 +82,9 @@ export function SchemaBuilder({
     const [activeTab, setActiveTab] = useState<"schema" | "auth">(initialTab);
     const [resourceName, setResourceName] = useState(endpoint.name);
     const [nameError, setNameError] = useState<string | null>(null);
+    const [schemaPath, setSchemaPath] = useState(endpoint.path);
+    const [pathError, setPathError] = useState<string | null>(null);
+    const [httpMethod, setHttpMethod] = useState<HttpMethod>(endpoint.method);
     const [delayMs, setDelayMs] = useState(endpoint.delayMs);
     const [failureRate, setFailureRate] = useState(endpoint.failureRate);
     const [responseCount, setResponseCount] = useState(endpoint.responseCount);
@@ -101,6 +104,9 @@ export function SchemaBuilder({
     useEffect(() => {
         setResourceName(endpoint.name);
         setNameError(null);
+        setSchemaPath(endpoint.path);
+        setPathError(null);
+        setHttpMethod(endpoint.method);
         setDelayMs(endpoint.delayMs);
         setFailureRate(endpoint.failureRate);
         setResponseCount(endpoint.responseCount);
@@ -166,11 +172,27 @@ export function SchemaBuilder({
     }, [endpoint.responseSchema]);
 
     const handleSubmit = () => {
+        let hasError = false;
+
         if (!resourceName.trim()) {
             setNameError("Resource name is required.");
-            return;
+            hasError = true;
+        } else {
+            setNameError(null);
         }
-        setNameError(null);
+
+        const trimmedPath = schemaPath.trim();
+        if (!trimmedPath) {
+            setPathError("Path is required.");
+            hasError = true;
+        } else if (!trimmedPath.startsWith("/")) {
+            setPathError("Path must start with /");
+            hasError = true;
+        } else {
+            setPathError(null);
+        }
+
+        if (hasError) return;
 
         let formattedSchema: unknown;
         if (editorMode === "raw") {
@@ -189,6 +211,8 @@ export function SchemaBuilder({
             {
                 id: endpoint.id,
                 name: resourceName,
+                path: trimmedPath,
+                method: httpMethod,
                 responseSchema: formattedSchema as Record<string, unknown>,
                 delayMs: delayMs,
                 failureRate: failureRate,
@@ -262,6 +286,66 @@ export function SchemaBuilder({
                                 {nameError && (
                                     <p className="text-xs font-medium text-destructive">
                                         {nameError}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Schema path + HTTP method */}
+                            <div className="space-y-1.5">
+                                <Label className="text-sm font-semibold">Schema path</Label>
+                                <div className="flex items-stretch gap-2">
+                                    {/* Method pill-toggle */}
+                                    <div className="flex rounded-md bg-muted p-0.5 shrink-0">
+                                        {(
+                                            [
+                                                "GET",
+                                                "POST",
+                                                "PUT",
+                                                "PATCH",
+                                                "DELETE",
+                                            ] as HttpMethod[]
+                                        ).map((m) => (
+                                            <button
+                                                key={m}
+                                                type="button"
+                                                onClick={() => setHttpMethod(m)}
+                                                className={`px-2 py-1 rounded-sm text-[11px] font-bold tracking-wide transition-colors ${
+                                                    httpMethod === m
+                                                        ? m === "GET"
+                                                            ? "bg-emerald-500/20 text-emerald-400 shadow-xs"
+                                                            : m === "POST"
+                                                              ? "bg-blue-500/20 text-blue-400 shadow-xs"
+                                                              : m === "PUT"
+                                                                ? "bg-amber-500/20 text-amber-400 shadow-xs"
+                                                                : m === "PATCH"
+                                                                  ? "bg-purple-500/20 text-purple-400 shadow-xs"
+                                                                  : "bg-rose-500/20 text-rose-400 shadow-xs"
+                                                        : "text-muted-foreground hover:text-foreground"
+                                                }`}
+                                            >
+                                                {m}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Path input */}
+                                    <div className="relative flex-1">
+                                        <Input
+                                            id="schema-path"
+                                            placeholder="/users/:id"
+                                            value={schemaPath}
+                                            onChange={(e) => {
+                                                setSchemaPath(e.target.value);
+                                                if (pathError) setPathError(null);
+                                            }}
+                                            aria-invalid={!!pathError}
+                                            className="h-11 border-0 bg-muted font-mono text-sm shadow-none focus-visible:ring-2 focus-visible:ring-ring aria-invalid:ring-2 aria-invalid:ring-destructive/50"
+                                        />
+                                    </div>
+                                </div>
+                                {pathError && (
+                                    <p className="text-xs font-medium text-destructive">
+                                        {pathError}
                                     </p>
                                 )}
                             </div>
