@@ -14,12 +14,14 @@ import {
     TrashIcon,
     FilePlus2,
     KeyRound,
+    DownloadIcon,
 } from "lucide-react";
 
 export function TreeNodeMenu({
     onNewFolder,
     onNewFile,
     onSettings,
+    onExport,
     onRename,
     onDelete,
     showNewFolder = true,
@@ -28,6 +30,7 @@ export function TreeNodeMenu({
     onNewFolder?: () => void;
     onNewFile?: () => void;
     onSettings?: () => void;
+    onExport?: () => void;
     onRename: () => void;
     onDelete: () => void;
     showNewFolder?: boolean;
@@ -68,6 +71,11 @@ export function TreeNodeMenu({
                     {onSettings && (
                         <DropdownMenuItem onClick={onSettings}>
                             <KeyRound className="mr-2 h-4 w-4 text-primary" /> Settings & Secret
+                        </DropdownMenuItem>
+                    )}
+                    {onExport && (
+                        <DropdownMenuItem onClick={onExport}>
+                            <DownloadIcon className="mr-2 h-4 w-4" /> Export project
                         </DropdownMenuItem>
                     )}
                     <DropdownMenuItem onClick={onRename}>

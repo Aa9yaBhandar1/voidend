@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Eye, EyeOff, Copy, Check, RefreshCw, KeyRound, Save } from "lucide-react";
+import {
+    Eye,
+    EyeOff,
+    Copy,
+    Check,
+    RefreshCw,
+    KeyRound,
+    Save,
+    Download,
+    Upload,
+} from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -14,7 +24,9 @@ import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import { Separator } from "~/components/ui/separator";
-import { useProjectById, useUpdateProject } from "~/hooks/use-projects";
+import { useProjectById, useUpdateProject, useImportProject } from "~/hooks/use-projects";
+import { api } from "~/trpc/react";
+import { ImportProjectDialog } from "./dialogs";
 
 interface ProjectSettingsDialogProps {
     projectId: string | null;
@@ -29,12 +41,15 @@ export function ProjectSettingsDialog({
 }: ProjectSettingsDialogProps) {
     const { data: project } = useProjectById(projectId);
     const updateProject = useUpdateProject();
+    const importProject = useImportProject();
+    const trpcUtils = api.useUtils();
 
     const [title, setTitle] = useState("");
     const [basePath, setBasePath] = useState("/");
     const [secret, setSecret] = useState("");
     const [showSecret, setShowSecret] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [isImportOpen, setIsImportOpen] = useState(false);
 
     useEffect(() => {
         if (project) {
@@ -59,7 +74,6 @@ export function ProjectSettingsDialog({
     };
 
     const handleRegenerate = () => {
-        // Generate a cryptographically secure 32-byte hex secret
         const array = new Uint8Array(32);
         crypto.getRandomValues(array);
         const newSecret = Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
@@ -73,6 +87,25 @@ export function ProjectSettingsDialog({
                 },
             },
         );
+    };
+
+    const handleExport = async () => {
+        try {
+            const data = await trpcUtils.project.exportProject.fetch({ id: project.id });
+            const jsonString = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${project.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}-export.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast.success("Project exported");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to export project");
+        }
     };
 
     const handleSaveGeneral = () => {
@@ -98,141 +131,198 @@ export function ProjectSettingsDialog({
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md gap-5 sm:max-w-lg">
-                <DialogHeader className="gap-1">
-                    <DialogTitle className="flex items-center gap-2 text-lg font-bold">
-                        <KeyRound className="h-5 w-5 text-primary" />
-                        Project Settings
-                    </DialogTitle>
-                </DialogHeader>
+        <>
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-md gap-5 sm:max-w-lg">
+                    <DialogHeader className="gap-1">
+                        <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+                            <KeyRound className="h-5 w-5 text-primary" />
+                            Project Settings
+                        </DialogTitle>
+                    </DialogHeader>
 
-                <div className="space-y-4 py-1">
-                    {/* Project Name & Base Path */}
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                            <Label
-                                htmlFor="project-title"
-                                className="text-xs font-semibold uppercase text-muted-foreground"
-                            >
-                                Project Name
-                            </Label>
-                            <Input
-                                id="project-title"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                placeholder="My API Project"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label
-                                htmlFor="project-base-path"
-                                className="text-xs font-semibold uppercase text-muted-foreground"
-                            >
-                                Base Path
-                            </Label>
-                            <Input
-                                id="project-base-path"
-                                value={basePath}
-                                onChange={(e) => setBasePath(e.target.value)}
-                                placeholder="/"
-                                className="font-mono text-sm"
-                            />
-                        </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* JWT Secret Section */}
-                    <div className="space-y-2.5 rounded-xl border bg-muted/30 p-4">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <Label className="text-sm font-semibold flex items-center gap-1.5">
-                                    Project JWT Secret
+                    <div className="space-y-4 py-1">
+                        {/* Project Name & Base Path */}
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="space-y-1.5">
+                                <Label
+                                    htmlFor="project-title"
+                                    className="text-xs font-semibold uppercase text-muted-foreground"
+                                >
+                                    Project Name
                                 </Label>
-                                <p className="text-xs text-muted-foreground">
-                                    Used to sign JWTs for login endpoints &amp; verify auth headers.
-                                </p>
+                                <Input
+                                    id="project-title"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    placeholder="My API Project"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label
+                                    htmlFor="project-base-path"
+                                    className="text-xs font-semibold uppercase text-muted-foreground"
+                                >
+                                    Base Path
+                                </Label>
+                                <Input
+                                    id="project-base-path"
+                                    value={basePath}
+                                    onChange={(e) => setBasePath(e.target.value)}
+                                    placeholder="/"
+                                    className="font-mono text-sm"
+                                />
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <div className="relative flex-1">
-                                <Input
-                                    type={showSecret ? "text" : "password"}
-                                    value={secret}
-                                    onChange={(e) => setSecret(e.target.value)}
-                                    className="font-mono text-sm pr-10 tracking-wider bg-background"
-                                    placeholder="JWT Secret"
-                                />
+                        <Separator />
+
+                        {/* JWT Secret Section */}
+                        <div className="space-y-2.5 rounded-xl border bg-muted/30 p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label className="text-sm font-semibold flex items-center gap-1.5">
+                                        Project JWT Secret
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Used to sign JWTs for login endpoints &amp; verify auth
+                                        headers.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <div className="relative flex-1">
+                                    <Input
+                                        type={showSecret ? "text" : "password"}
+                                        value={secret}
+                                        onChange={(e) => setSecret(e.target.value)}
+                                        className="font-mono text-sm pr-10 tracking-wider bg-background"
+                                        placeholder="JWT Secret"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setShowSecret((v) => !v)}
+                                        className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
+                                        title={showSecret ? "Hide secret" : "Reveal secret"}
+                                    >
+                                        {showSecret ? (
+                                            <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                            <Eye className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </div>
+
                                 <Button
                                     type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setShowSecret((v) => !v)}
-                                    className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
-                                    title={showSecret ? "Hide secret" : "Reveal secret"}
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={handleCopy}
+                                    className="h-9 w-9 shrink-0"
+                                    title="Copy secret"
                                 >
-                                    {showSecret ? (
-                                        <EyeOff className="h-4 w-4" />
+                                    {copied ? (
+                                        <Check className="h-4 w-4 text-emerald-500" />
                                     ) : (
-                                        <Eye className="h-4 w-4" />
+                                        <Copy className="h-4 w-4" />
                                     )}
                                 </Button>
                             </div>
 
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={handleCopy}
-                                className="h-9 w-9 shrink-0"
-                                title="Copy secret"
-                            >
-                                {copied ? (
-                                    <Check className="h-4 w-4 text-emerald-500" />
-                                ) : (
-                                    <Copy className="h-4 w-4" />
-                                )}
-                            </Button>
+                            <div className="flex items-center justify-between pt-1">
+                                <span className="text-[11px] text-muted-foreground font-mono">
+                                    Length: {secret.length} chars
+                                </span>
+
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={handleRegenerate}
+                                    disabled={updateProject.isPending}
+                                    className="h-7 text-xs gap-1.5"
+                                >
+                                    <RefreshCw
+                                        className={`h-3 w-3 ${updateProject.isPending ? "animate-spin" : ""}`}
+                                    />
+                                    Regenerate
+                                </Button>
+                            </div>
                         </div>
 
-                        <div className="flex items-center justify-between pt-1">
-                            <span className="text-[11px] text-muted-foreground font-mono">
-                                Length: {secret.length} chars
-                            </span>
+                        <Separator />
 
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                onClick={handleRegenerate}
-                                disabled={updateProject.isPending}
-                                className="h-7 text-xs gap-1.5"
-                            >
-                                <RefreshCw
-                                    className={`h-3 w-3 ${updateProject.isPending ? "animate-spin" : ""}`}
-                                />
-                                Regenerate
-                            </Button>
+                        {/* Export & Import Section */}
+                        <div className="space-y-2.5 rounded-xl border bg-muted/30 p-4">
+                            <div className="space-y-0.5">
+                                <Label className="text-sm font-semibold flex items-center gap-1.5">
+                                    Backup &amp; Portability
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Export this project schema to JSON or import another project
+                                    specification.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleExport}
+                                    className="h-8 text-xs gap-1.5"
+                                >
+                                    <Download className="h-3.5 w-3.5" />
+                                    Export JSON
+                                </Button>
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsImportOpen(true)}
+                                    className="h-8 text-xs gap-1.5"
+                                >
+                                    <Upload className="h-3.5 w-3.5" />
+                                    Import Project
+                                </Button>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <DialogFooter className="gap-2 sm:gap-0">
-                    <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleSaveGeneral}
-                        disabled={updateProject.isPending || !title.trim()}
-                        className="gap-1.5 font-semibold"
-                    >
-                        <Save className="h-4 w-4" />
-                        {updateProject.isPending ? "Saving..." : "Save Settings"}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSaveGeneral}
+                            disabled={updateProject.isPending || !title.trim()}
+                            className="gap-1.5 font-semibold"
+                        >
+                            <Save className="h-4 w-4" />
+                            {updateProject.isPending ? "Saving..." : "Save Settings"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <ImportProjectDialog
+                open={isImportOpen}
+                onOpenChange={setIsImportOpen}
+                onImport={(data) => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    importProject.mutate(data as any, {
+                        onSuccess: () => {
+                            setIsImportOpen(false);
+                            onOpenChange(false);
+                        },
+                    });
+                }}
+                isImporting={importProject.isPending}
+            />
+        </>
     );
 }
