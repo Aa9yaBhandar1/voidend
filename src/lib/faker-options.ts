@@ -274,13 +274,32 @@ export function fieldsFromSchema(schema: unknown, prefix = ""): SchemaField[] {
     return fields;
 }
 
-export function buildSchema(schemaFields: SchemaField[]): Record<string, string> {
-    const formattedSchema: Record<string, string> = {};
+export function buildSchema(schemaFields: SchemaField[]): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+
     schemaFields.forEach((field) => {
-        if (field.fieldName.trim()) {
-            formattedSchema[field.fieldName.trim()] = field.dataType;
+        const name = field.fieldName.trim();
+        if (!name) return;
+
+        const parts = name.split(".");
+        let current: Record<string, unknown> = result;
+
+        for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i]!;
+            // If the key already exists but is not an object, overwrite it
+            if (
+                typeof current[part] !== "object" ||
+                current[part] === null ||
+                Array.isArray(current[part])
+            ) {
+                current[part] = {};
+            }
+            current = current[part] as Record<string, unknown>;
         }
+
+        const lastPart = parts[parts.length - 1]!;
+        current[lastPart] = field.dataType;
     });
 
-    return formattedSchema;
+    return result;
 }
