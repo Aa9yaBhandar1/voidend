@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PanelLeftIcon, Plus } from "lucide-react";
+import { PanelLeftIcon, Plus, Upload } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { Sidebar, type SidebarHandle } from "../components/sidebar/workspace-sidebar";
 import { EndpointBar } from "../components/dashboard/endpointBar";
@@ -98,8 +98,17 @@ export function ApiClientLayout({
                         onClick={() => sidebarRef.current?.openProjectModal()}
                         className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                         aria-label="New project"
+                        title="New project"
                     >
                         <Plus className="h-4 w-4" />
+                    </button>
+                    <button
+                        onClick={() => sidebarRef.current?.openImportModal()}
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        aria-label="Import project"
+                        title="Import project"
+                    >
+                        <Upload className="h-4 w-4" />
                     </button>
                 </div>
 

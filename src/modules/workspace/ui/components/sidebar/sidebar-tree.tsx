@@ -257,6 +257,7 @@ export function ProjectTreeNode({
     onRenameFolder,
     onRenameEndpoint,
     onOpenModal,
+    onExportProject,
     onDeleteProject,
     onDeleteFolder,
     onDeleteEndpoint,
@@ -274,6 +275,7 @@ export function ProjectTreeNode({
     onRenameFolder: (id: string, name: string) => void;
     onRenameEndpoint: (id: string, name: string) => void;
     onOpenModal: (target: ModalTarget) => void;
+    onExportProject?: (id: string) => void;
     onDeleteProject: (id: string) => void;
     onDeleteFolder: (id: string) => void;
     onDeleteEndpoint: (id: string) => void;
@@ -338,6 +340,7 @@ export function ProjectTreeNode({
                     onSettings={() =>
                         onOpenModal({ kind: "projectSettings", projectId: project.id })
                     }
+                    onExport={onExportProject ? () => onExportProject(project.id) : undefined}
                     onRename={() => setRenamingId(project.id)}
                     onDelete={() => onDeleteProject(project.id)}
                 />

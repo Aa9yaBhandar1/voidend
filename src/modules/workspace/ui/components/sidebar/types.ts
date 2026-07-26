@@ -28,6 +28,7 @@ export type FolderRow = {
 
 export type ModalTarget =
     | { kind: "project"; projectId?: never; parentId?: never; folderId?: never }
+    | { kind: "importProject"; projectId?: never; parentId?: never; folderId?: never }
     | { kind: "projectSettings"; projectId: string; parentId?: never; folderId?: never }
     | { kind: "folder"; projectId: string; parentId?: string }
     | { kind: "endpoint"; projectId: string; folderId?: string };

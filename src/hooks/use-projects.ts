@@ -52,3 +52,18 @@ export function useDeleteProject() {
         },
     });
 }
+
+export function useImportProject() {
+    const utils = api.useUtils();
+    return api.project.importProject.useMutation({
+        onSuccess: (data) => {
+            invalidateProjectQueries(utils);
+            toast.success(
+                `Project imported successfully (${data.foldersCreated} folders, ${data.endpointsCreated} endpoints)`,
+            );
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to import project");
+        },
+    });
+}

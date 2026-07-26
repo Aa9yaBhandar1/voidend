@@ -1,25 +1,34 @@
 "use client";
 
 import { forwardRef, useImperativeHandle, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { ConfirmDialog } from "~/components/confirm-dialog";
 import { TreeProvider, TreeView } from "~/components/kibo-ui/tree";
-import { CreateFolderDialog, CreateEndpointDialog, CreateProjectDialog } from "./dialogs";
+import {
+    CreateFolderDialog,
+    CreateEndpointDialog,
+    CreateProjectDialog,
+    ImportProjectDialog,
+} from "./dialogs";
 import { ProjectSettingsDialog } from "./project-settings-dialog";
 import { ProjectTreeNode } from "./sidebar-tree";
 import {
     useCreateProject,
     useDeleteProject,
+    useImportProject,
     useProjects,
     useUpdateProject,
 } from "~/hooks/use-projects";
 import { useCreateFolder, useDeleteFolder, useRenameFolder } from "~/hooks/use-folders";
 import { useCreateEndpoint, useDeleteEndpoint, useUpdateEndpoint } from "~/hooks/use-endpoints";
+import { api } from "~/trpc/react";
+import { toast } from "sonner";
 import type { ModalTarget, SidebarProject } from "./types";
 
 export interface SidebarHandle {
     openProjectModal: () => void;
+    openImportModal: () => void;
 }
 
 export const Sidebar = forwardRef<
@@ -50,16 +59,38 @@ export const Sidebar = forwardRef<
     const createProject = useCreateProject();
     const deleteProject = useDeleteProject();
     const updateProject = useUpdateProject();
+    const importProject = useImportProject();
     const createEndpoint = useCreateEndpoint();
     const deleteEndpoint = useDeleteEndpoint();
     const updateEndpoint = useUpdateEndpoint();
+    const trpcUtils = api.useUtils();
 
     useImperativeHandle(ref, () => ({
         openProjectModal: () => setModal({ kind: "project" }),
+        openImportModal: () => setModal({ kind: "importProject" }),
     }));
 
     const confirmDangerousAction = (title: string, description: string, onConfirm: () => void) => {
         setConfirmState({ open: true, title, description, onConfirm });
+    };
+
+    const handleExportProject = async (projectId: string) => {
+        try {
+            const data = await trpcUtils.project.exportProject.fetch({ id: projectId });
+            const jsonString = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${data.project.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}-export.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast.success("Project exported");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to export project");
+        }
     };
 
     return (
@@ -69,14 +100,24 @@ export const Sidebar = forwardRef<
                     {projects.length === 0 ? (
                         <div className="mt-10 flex flex-col items-center gap-2 px-4 text-center text-xs text-muted-foreground">
                             <p>No projects yet.</p>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs"
-                                onClick={() => setModal({ kind: "project" })}
-                            >
-                                <Plus className="mr-1 h-3 w-3" /> New project
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => setModal({ kind: "project" })}
+                                >
+                                    <Plus className="mr-1 h-3 w-3" /> New project
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => setModal({ kind: "importProject" })}
+                                >
+                                    <Upload className="mr-1 h-3 w-3" /> Import
+                                </Button>
+                            </div>
                         </div>
                     ) : (
                         <TreeProvider showLines indent={16} animateExpand>
@@ -103,6 +144,7 @@ export const Sidebar = forwardRef<
                                             updateEndpoint.mutate({ id, name })
                                         }
                                         onOpenModal={setModal}
+                                        onExportProject={handleExportProject}
                                         onDeleteProject={(id) =>
                                             confirmDangerousAction(
                                                 "Delete project?",
@@ -159,6 +201,24 @@ export const Sidebar = forwardRef<
                     createProject.mutate({ title, basePath });
                     setModal(null);
                 }}
+            />
+            <ImportProjectDialog
+                open={modal?.kind === "importProject"}
+                onOpenChange={(open) => {
+                    if (!open) setModal(null);
+                }}
+                onImport={(data) => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    importProject.mutate(data as any, {
+                        onSuccess: (res) => {
+                            setModal(null);
+                            if (res.projectId) {
+                                onSelectProject(res.projectId);
+                            }
+                        },
+                    });
+                }}
+                isImporting={importProject.isPending}
             />
             <CreateFolderDialog
                 open={modal?.kind === "folder"}
