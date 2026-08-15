@@ -190,7 +190,7 @@ export function SchemaPreview({
                         </p>
                     )}
 
-                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden min-w-0">
                         <div className="grid grid-cols-2 bg-zinc-100 dark:bg-zinc-900 px-4 py-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                             <span>Field</span>
                             <span>Type</span>
@@ -208,7 +208,7 @@ export function SchemaPreview({
                                     className="grid grid-cols-2 px-4 py-2 font-mono text-sm border-t border-zinc-100 dark:border-zinc-800"
                                 >
                                     <span className="font-medium">{name}</span>
-                                    <span className="text-muted-foreground truncate">
+                                    <span className="text-muted-foreground break-words">
                                         {displayType}
                                     </span>
                                 </div>

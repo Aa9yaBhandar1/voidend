@@ -58,7 +58,7 @@ export function CodeBlock({
     return (
         <div
             className={cn(
-                "flex flex-col rounded-lg border border-zinc-800 overflow-hidden shadow-sm bg-zinc-950",
+                "flex flex-col rounded-lg border border-zinc-800 overflow-hidden shadow-sm bg-zinc-950 min-w-0 max-w-full",
                 className,
             )}
         >
@@ -67,12 +67,12 @@ export function CodeBlock({
                 language={lang}
                 theme="material-theme-darker"
                 showLanguage={false}
-                style={{ "--max-height": maxHeight } as React.CSSProperties} // Pass maxHeight safely as a CSS Variable
+                // Use inline maxHeight + overflow to reliably constrain large code blocks
+                style={{ maxHeight: maxHeight, overflow: "auto" } as React.CSSProperties}
                 className={cn(
                     "font-mono text-xs flex-1 rounded-none",
                     "scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-700 hover:scrollbar-thumb-zinc-500",
-                    "[&>pre]:my-0 [&>pre]:p-4 [&>pre]:overflow-x-auto [&>pre]:rounded-none",
-                    "[&>pre]:max-h-[var(--max-height)]",
+                    "[&>pre]:my-0 [&>pre]:p-4 [&>pre]:overflow-auto [&>pre]:rounded-none",
                 )}
             >
                 {code}
