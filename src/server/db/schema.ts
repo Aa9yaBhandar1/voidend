@@ -84,7 +84,6 @@ export const endpoints_table = createTable(
         failureRate: d.real().notNull().default(0),
         responseSchema: d.text({ mode: "json" }).notNull().default({}),
         responseCount: d.integer().notNull().default(1),
-        errorSchema: d.text({ mode: "json" }).default(null),
         createdAt: d
             .integer({ mode: "timestamp" })
             .notNull()

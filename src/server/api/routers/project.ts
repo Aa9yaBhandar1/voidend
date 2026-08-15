@@ -122,7 +122,6 @@ export const projectRouter = createTRPCRouter({
                         failureRate: e.failureRate,
                         responseSchema: e.responseSchema as Record<string, unknown>,
                         responseCount: e.responseCount,
-                        errorSchema: (e.errorSchema as Record<string, unknown> | null) ?? null,
                         authConfig: auth
                             ? {
                                   isLoginEndpoint: auth.isLoginEndpoint,
@@ -166,7 +165,6 @@ export const projectRouter = createTRPCRouter({
                         failureRate: z.number().min(0).max(1).default(0),
                         responseSchema: z.record(z.string(), z.unknown()).default({}),
                         responseCount: z.number().int().min(1).max(100).default(1),
-                        errorSchema: z.record(z.string(), z.unknown()).nullable().optional(),
                         authConfig: z
                             .object({
                                 isLoginEndpoint: z.boolean().default(false),
@@ -251,7 +249,6 @@ export const projectRouter = createTRPCRouter({
                         failureRate: ep.failureRate,
                         responseSchema: ep.responseSchema,
                         responseCount: ep.responseCount,
-                        errorSchema: ep.errorSchema ?? null,
                     })
                     .returning();
 

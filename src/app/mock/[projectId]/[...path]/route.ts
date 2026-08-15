@@ -91,9 +91,12 @@ async function handler(req: NextRequest, { params }: { params: Params | Promise<
     }
 
     if (endpoint.failureRate > 0 && Math.random() < endpoint.failureRate) {
-        return NextResponse.json(endpoint.errorSchema ?? { error: "Simulated failure" }, {
-            status: 500,
-        });
+        return NextResponse.json(
+            { error: "Simulated failure" },
+            {
+                status: 500,
+            },
+        );
     }
 
     const data =
